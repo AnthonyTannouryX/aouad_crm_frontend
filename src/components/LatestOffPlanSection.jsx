@@ -1,5 +1,5 @@
 // src/components/LatestOffPlanSection.jsx
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import "./latestOffPlanSection.css";
 
@@ -13,6 +13,17 @@ import {
   FaRegCircle,
 } from "react-icons/fa";
 
+const API_BASE = import.meta.env.VITE_API_BASE || "/api";
+const PAGE_LIMIT = 12;
+
+/**
+ * IMPORTANT:
+ * - Your backend already works with: listingType=FOR_SALE / FOR_RENT.
+ * - OFF-PLAN might NOT be listingType in your DB.
+ * So this component is built to try a few common query shapes.
+ *
+ * You can lock it to the correct one once you confirm which param your backend uses.
+ */
 export default function LatestOffPlanSection() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -20,27 +31,69 @@ export default function LatestOffPlanSection() {
   useEffect(() => {
     let alive = true;
 
+    async function fetchJson(url) {
+      const res = await fetch(url);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data?.error || `Failed to fetch: ${res.status}`);
+      }
+      return data;
+    }
+
+    function normalizeList(data) {
+      const list = Array.isArray(data) ? data : data?.items;
+      return Array.isArray(list) ? list : [];
+    }
+
     async function load() {
       try {
         setLoading(true);
 
-        // ✅ PUBLIC endpoint (no token needed)
-        const res = await fetch(
-          "/api/public/listings?listingType=OFF_PLAN&featured=true&limit=12"
-        );
+        // We try a few query variants because "OFF_PLAN" might not be a listingType enum in your backend.
+        // The first one that returns items wins.
+        const candidates = [
+          // (Your original)
+          `${API_BASE}/public/listings?listingType=OFF_PLAN&featured=true&limit=${PAGE_LIMIT}`,
+          // Common alternate: "OFFPLAN" (no underscore)
+          `${API_BASE}/public/listings?listingType=OFFPLAN&featured=true&limit=${PAGE_LIMIT}`,
+          // Common alternate param names (if your backend uses project/category flags)
+          `${API_BASE}/public/listings?category=OFF_PLAN&featured=true&limit=${PAGE_LIMIT}`,
+          `${API_BASE}/public/listings?projectType=OFF_PLAN&featured=true&limit=${PAGE_LIMIT}`,
+          `${API_BASE}/public/listings?isOffPlan=true&featured=true&limit=${PAGE_LIMIT}`,
+        ];
 
-        if (!res.ok) throw new Error("Failed to fetch listings");
-        const data = await res.json();
+        let list = [];
+        let lastErr = null;
 
+        for (const url of candidates) {
+          try {
+            const data = await fetchJson(url);
+            const arr = normalizeList(data);
+            if (arr.length) {
+              list = arr;
+              break;
+            }
+          } catch (e) {
+            lastErr = e;
+            // keep trying next candidate
+          }
+        }
+
+        // If all candidates failed or returned empty, we still render empty state (no crash)
         if (!alive) return;
 
-        const list = Array.isArray(data) ? data : data.items;
-        setItems(list || []);
+        setItems(list);
+
+        // Optional: if you want to see which one worked, uncomment:
+        // console.log("Off-plan loaded count:", list.length);
+        // if (!list.length && lastErr) console.warn("Off-plan last error:", lastErr);
       } catch (e) {
         console.error(e);
-        if (alive) setItems([]);
+        if (!alive) return;
+        setItems([]);
       } finally {
-        if (alive) setLoading(false);
+        if (!alive) return;
+        setLoading(false);
       }
     }
 
@@ -80,10 +133,32 @@ function CardsSkeleton() {
           <div className="lop-media" style={{ background: "#eee" }} />
           <div className="lop-body">
             <div style={{ height: 18, width: "70%", background: "#eee", borderRadius: 6 }} />
-            <div style={{ height: 12, width: "50%", background: "#f0f0f0", borderRadius: 6, marginTop: 10 }} />
-            <div style={{ height: 12, width: "60%", background: "#f0f0f0", borderRadius: 6, marginTop: 8 }} />
+            <div
+              style={{
+                height: 12,
+                width: "50%",
+                background: "#f0f0f0",
+                borderRadius: 6,
+                marginTop: 10,
+              }}
+            />
+            <div
+              style={{
+                height: 12,
+                width: "60%",
+                background: "#f0f0f0",
+                borderRadius: 6,
+                marginTop: 8,
+              }}
+            />
             <div className="lop-line" />
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
               <div style={{ height: 14, width: 120, background: "#eee", borderRadius: 6 }} />
               <div style={{ display: "flex", gap: 8 }}>
                 <div style={{ width: 38, height: 38, background: "#eee", borderRadius: 10 }} />
@@ -148,17 +223,21 @@ function CardsCarousel({ items }) {
             to={`/listing/${p.id}`}
             className="lop-card"
             onClick={() => window.scrollTo(0, 0)}
-            aria-label={`Open listing: ${p.title}`}
+            aria-label={`Open listing: ${p.title || p.location || p.id}`}
           >
             <div className="lop-media">
-              <img
-                className="lop-img"
-                src={p.mainImageUrl || ""}
-                alt={p.title}
-                onError={(e) => {
-                  e.currentTarget.style.display = "none";
-                }}
-              />
+              {p.mainImageUrl ? (
+                <img
+                  className="lop-img"
+                  src={p.mainImageUrl}
+                  alt={p.title || "Off-plan property"}
+                  onError={(e) => {
+                    e.currentTarget.style.display = "none";
+                  }}
+                />
+              ) : (
+                <div className="lop-img" style={{ background: "#eee" }} />
+              )}
 
               <div className="lop-badges">
                 {p.featured && (
@@ -166,23 +245,31 @@ function CardsCarousel({ items }) {
                     Featured <FaStar className="lop-star" />
                   </div>
                 )}
-                {p.handover && <div className="lop-badge lop-badge--dark">{p.handover}</div>}
-                {p.developer && <div className="lop-badge lop-badge--black">{p.developer}</div>}
+                {p.handover && (
+                  <div className="lop-badge lop-badge--dark">{p.handover}</div>
+                )}
+                {(p.developer || p.developerName) && (
+                  <div className="lop-badge lop-badge--black">
+                    {p.developer || p.developerName}
+                  </div>
+                )}
               </div>
             </div>
 
             <div className="lop-body">
-              <h3 className="lop-card-title">{p.title}</h3>
+              <h3 className="lop-card-title">{p.title || "Off-plan Property"}</h3>
 
               <div className="lop-meta">
                 <div className="lop-meta-row">
                   <FaMapMarkerAlt className="lop-mini" />
-                  <span>{p.location}</span>
+                  <span>
+                    {p.location || [p.country, p.city, p.area].filter(Boolean).join(", ") || "-"}
+                  </span>
                 </div>
 
                 <div className="lop-meta-row">
                   <FaRegCircle className="lop-mini" />
-                  <span>Payment Plan: {p.paymentPlan}</span>
+                  <span>Payment Plan: {p.paymentPlan || "-"}</span>
                 </div>
               </div>
 
@@ -190,9 +277,7 @@ function CardsCarousel({ items }) {
 
               <div className="lop-bottom">
                 <span className="lop-from">
-                  {p.priceFrom
-                    ? `From ${p.currency || "USD"} ${Number(p.priceFrom).toLocaleString()}`
-                    : ""}
+                  {formatFromPrice(p)}
                 </span>
 
                 <div className="lop-actions">
@@ -202,7 +287,10 @@ function CardsCarousel({ items }) {
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      // later: use p.agent?.phone
+                      // TODO: wire phone (p.agent?.phone or p.phone)
+                      // Example:
+                      // const phone = (p.agent?.phone || p.phone || "").replace(/\s+/g, "");
+                      // if (phone) window.location.href = `tel:${phone}`;
                     }}
                   >
                     <FaPhoneAlt className="lop-action-ico" />
@@ -214,7 +302,11 @@ function CardsCarousel({ items }) {
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      // later: use p.agent?.phone
+                      // TODO: wire whatsapp (p.agent?.phone or p.phone)
+                      // Example:
+                      // const phone = (p.agent?.phone || p.phone || "").replace(/[^\d+]/g, "");
+                      // const msg = encodeURIComponent(`Hi, I'm interested in ${p.title || "this off-plan property"}.`);
+                      // if (phone) window.open(`https://wa.me/${phone}?text=${msg}`, "_blank");
                     }}
                   >
                     <FaWhatsapp className="lop-action-ico" />
@@ -229,13 +321,18 @@ function CardsCarousel({ items }) {
       {maxIndex > 0 && (
         <div className="lop-section-dots" aria-hidden="true">
           {Array.from({ length: maxIndex + 1 }).map((_, i) => (
-            <span
-              key={i}
-              className={"lop-section-dot" + (i === index ? " is-active" : "")}
-            />
+            <span key={i} className={"lop-section-dot" + (i === index ? " is-active" : "")} />
           ))}
         </div>
       )}
     </>
   );
+}
+
+/* ================= helpers ================= */
+function formatFromPrice(p) {
+  const cur = p.currency || "USD";
+  const n = Number(p.priceFrom ?? p.startingPrice ?? p.price ?? 0) || 0;
+  if (!n) return "";
+  return `From ${cur} ${n.toLocaleString()}`;
 }
