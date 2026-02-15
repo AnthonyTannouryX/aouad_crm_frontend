@@ -1,0 +1,110 @@
+/* src/admin/pages/adminListingsSearchPage.css */
+
+.als {
+    padding: 12px;
+}
+
+.als-filters {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    margin-bottom: 18px;
+}
+
+.als-filter {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: #fff;
+    border: 1px solid rgba(15, 23, 42, 0.12);
+    border-radius: 14px;
+    padding: 10px 12px;
+}
+
+.als-filterIcon {
+    font-size: 16px;
+    opacity: 0.7;
+}
+
+.als-filterBody {
+    flex: 1;
+}
+
+.als-filterLabel {
+    font-size: 11px;
+    color: rgba(107, 114, 128);
+    margin-bottom: 2px;
+}
+
+.als-select {
+    width: 100%;
+    border: 0;
+    outline: none;
+    font-size: 14px;
+    background: transparent;
+}
+
+.als-empty {
+    color: rgba(107, 114, 128);
+    padding: 30px 0;
+}
+
+.als-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.als-card {
+    background: #fff;
+    border: 1px solid rgba(15, 23, 42, 0.12);
+    border-radius: 14px;
+    padding: 14px;
+    overflow: hidden;
+}
+
+.als-img {
+    width: 100%;
+    height: 160px;
+    border-radius: 10px;
+    background-size: cover;
+    background-position: center;
+    margin-bottom: 10px;
+    transform: scale(1);
+    transition: transform 0.25s ease;
+}
+
+.als-card:hover .als-img {
+    transform: scale(1.02);
+}
+
+.als-title {
+    font-weight: 700;
+    margin-bottom: 6px;
+}
+
+.als-meta {
+    font-size: 13px;
+    color: rgba(107, 114, 128);
+    margin-bottom: 8px;
+}
+
+.als-price {
+    font-weight: 600;
+    margin-bottom: 2px;
+}
+
+.als-cardLink {
+    text-decoration: none;
+    color: inherit;
+}
+
+.als-card {
+    cursor: pointer;
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.als-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 14px 32px rgba(15, 23, 42, 0.12);
+}

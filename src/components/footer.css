@@ -1,0 +1,112 @@
+/* ================= FOOTER ================= */
+
+.ft {
+    background: #fff;
+}
+
+/* TOP LINE */
+.ft-line {
+    height: 1px;
+    background: rgba(15, 23, 42, 0.12);
+}
+
+/* INNER */
+.ft-inner {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 40px 24px 26px;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 16px;
+}
+
+/* LOGO */
+.ft-logo {
+    height: 56px;
+    width: auto;
+}
+
+/* CONTACT */
+.ft-contact {
+    display: flex;
+    gap: 32px;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+}
+
+.ft-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+
+    text-decoration: none;
+    font-size: 18px;
+    color: rgb(51, 61, 76);
+}
+
+.ft-link svg {
+    width: 20px;
+    height: 20px;
+    opacity: 0.9;
+}
+
+/* SOCIAL */
+.ft-social {
+    display: flex;
+    gap: 26px;
+    margin-top: 6px;
+}
+
+.ft-soc {
+    width: 36px;
+    height: 36px;
+    display: grid;
+    place-items: center;
+
+    color: rgb(51, 61, 76);
+    text-decoration: none;
+    opacity: 0.9;
+
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.ft-soc svg {
+    width: 18px;
+    height: 18px;
+}
+
+.ft-soc:hover {
+    opacity: 1;
+    transform: translateY(-1px);
+}
+
+/* COPYRIGHT */
+.ft-copy {
+    margin-top: 10px;
+    font-size: 16px;
+    color: rgb(148, 163, 184);
+}
+
+.ft-brand {
+    color: rgb(51, 61, 76);
+}
+
+/* MOBILE */
+@media (max-width: 640px) {
+    .ft-inner {
+        padding: 32px 20px 22px;
+        gap: 14px;
+    }
+
+    .ft-link {
+        font-size: 16px;
+    }
+
+    .ft-logo {
+        height: 52px;
+    }
+}

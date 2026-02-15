@@ -1,0 +1,283 @@
+/* =========================================================
+   ========================================================= */
+
+.whyAouad {
+    background: #fff;
+    color: rgb(17, 24, 39);
+}
+
+/* ================= HERO ================= */
+
+.whyAouad-hero {
+    position: relative;
+    width: 100%;
+    min-height: 80vh;
+    overflow: hidden;
+}
+
+.whyAouad-hero::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image: inherit;
+    background-position: center;
+    background-size: cover;
+    animation: heroZoom 16s ease-in-out infinite;
+    transform-origin: center;
+    z-index: 0;
+}
+
+.whyAouad-heroOverlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.46);
+    z-index: 1;
+}
+
+.whyAouad-heroInner {
+    position: relative;
+    z-index: 2;
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 0 24px;
+}
+
+.whyAouad-heroContent {
+    min-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    color: #fff;
+}
+
+.whyAouad-eyebrow {
+    font-family: Montserrat, sans-serif;
+    font-size: 12px;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    opacity: 0.9;
+    margin-bottom: 20px;
+}
+
+.whyAouad-titleSingle {
+    margin: 0;
+    font-family: Montserrat, sans-serif;
+    font-weight: 300;
+    font-size: 72px;
+    letter-spacing: 0.18em;
+    line-height: 1.1;
+    text-transform: uppercase;
+}
+
+.whyAouad-sub {
+    margin-top: 28px;
+    max-width: 760px;
+    font-family: Montserrat, sans-serif;
+    font-size: 18px;
+    line-height: 1.55;
+    opacity: 0.95;
+}
+
+@keyframes heroZoom {
+    0% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.08);
+    }
+
+    100% {
+        transform: scale(1);
+    }
+}
+
+
+.whyAouad-twoCol {
+    padding: 72px 0;
+    background: #fff;
+}
+
+.whyAouad-inner {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 0 24px;
+}
+
+.whyAouad-twoColGrid {
+    display: grid;
+    grid-template-columns: 1.05fr 0.95fr;
+    gap: 48px;
+    align-items: end;
+    /* bottom-align both sides */
+}
+
+/* LEFT */
+
+.whyAouad-h2 {
+    margin: 0 0 18px;
+    font-family: Montserrat, sans-serif;
+    font-weight: 300;
+    font-size: 38px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.whyAouad-lead {
+    margin: 0 0 28px;
+    font-family: Montserrat, sans-serif;
+    font-size: 18px;
+    line-height: 1.55;
+    color: rgb(78, 85, 98);
+    max-width: 620px;
+}
+
+.whyAouad-bullets {
+    display: flex;
+    flex-direction: column;
+    gap: 26px;
+}
+
+.whyAouad-bullet {
+    display: grid;
+    grid-template-columns: 28px 1fr;
+    gap: 14px;
+}
+
+.whyAouad-check {
+    width: 24px;
+    height: 24px;
+    border-radius: 999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 600;
+    border: 1px solid rgba(15, 23, 42, 0.18);
+}
+
+.whyAouad-bulletText {
+    margin: 0;
+    font-family: Montserrat, sans-serif;
+    font-size: 16px;
+    line-height: 1.8;
+    color: rgb(78, 85, 98);
+}
+
+/* RIGHT — LOGO BLOCK (FIXED) */
+
+.whyAouad-logoWrap {
+    height: 440px;
+    /* smaller box */
+    border-radius: 22px;
+    border: 1px solid rgba(15, 23, 42, 0.12);
+    background: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.whyAouad-logo {
+    width: min(600px, 90%);
+    /* bigger logo */
+    height: auto;
+    opacity: 0.95;
+}
+
+/* ================= CTA ================= */
+
+.whyAouad-cta {
+    padding: 54px 0;
+    background: #0b1220;
+    color: #fff;
+}
+
+.whyAouad-ctaRow {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+}
+
+.whyAouad-ctaTitle {
+    font-size: 26px;
+    font-weight: 600;
+}
+
+.whyAouad-ctaSub {
+    font-size: 16px;
+    opacity: 0.85;
+}
+
+.whyAouad-ctaBtn {
+    height: 48px;
+    padding: 0 22px;
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    color: #fff;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+/* ================= RESPONSIVE ================= */
+
+@media (max-width: 1024px) {
+    .whyAouad-twoColGrid {
+        grid-template-columns: 1fr;
+        gap: 28px;
+    }
+
+    .whyAouad-titleSingle {
+        font-size: 56px;
+        letter-spacing: 0.12em;
+    }
+
+    .whyAouad-logoWrap {
+        height: 360px;
+    }
+
+    .whyAouad-logo {
+        width: min(420px, 80%);
+    }
+}
+
+@media (max-width: 768px) {
+
+    .whyAouad-hero,
+    .whyAouad-heroContent {
+        min-height: 85vh;
+    }
+
+    .whyAouad-titleSingle {
+        font-size: 38px;
+        letter-spacing: 0.10em;
+    }
+
+    .whyAouad-sub {
+        font-size: 14px;
+    }
+
+    .whyAouad-h2 {
+        font-size: 28px;
+    }
+
+    .whyAouad-lead {
+        font-size: 16px;
+    }
+
+    .whyAouad-logoWrap {
+        height: 320px;
+    }
+
+    .whyAouad-logo {
+        width: min(280px, 80%);
+    }
+
+    .whyAouad-ctaRow {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}

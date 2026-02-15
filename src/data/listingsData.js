@@ -1,0 +1,73 @@
+// src/data/listingsData.js
+import img1 from "../assets/OFF-PLAN/3.jpg";
+import img2 from "../assets/OFF-PLAN/23.jpg.png";
+import img3 from "../assets/OFF-PLAN/BATUMI, GEORGIA (5).jpg.png";
+import img4 from "../assets/OFF-PLAN/prop1.jpeg";
+
+export const LISTINGS_DATA = [
+    {
+        id: 1,
+        status: "For Rent",
+        developer: "Emaar",
+        type: "Apartment",
+        price: "AED 260,000 / year",
+        location: "Orchid T1 | Dubai Creek Harbour",
+        area: "1674 sq.ft",
+        beds: 2,
+        baths: 2,
+        parking: 1,
+        image: img1,
+    },
+    {
+        id: 2,
+        status: "For Rent",
+        developer: "Emaar",
+        type: "Apartment",
+        price: "AED 300,000 / year",
+        location: "Orchid T1 | Dubai Creek Harbour",
+        area: "1651 sq.ft",
+        beds: 3,
+        baths: 2,
+        parking: 1,
+        image: img2,
+    },
+    {
+        id: 3,
+        status: "For Rent",
+        developer: "Emaar",
+        type: "Apartment",
+        price: "AED 350,000 / year",
+        location: "The Grand | Dubai Creek Harbour",
+        area: "1280 sq.ft",
+        beds: 2,
+        baths: 2,
+        parking: 1,
+        image: img3,
+    },
+    {
+        id: 4,
+        status: "For Sale",
+        developer: "Sobha",
+        type: "Apartment",
+        price: "AED 1,700,000",
+        location: "Sobha Hartlands The Terraces | MBR City",
+        area: "762 sq.ft",
+        beds: 1,
+        baths: 2,
+        parking: 1,
+        image: img4,
+    },
+    {
+        id: 5,
+        status: "For Sale",
+        developer: "Meraas",
+        type: "Apartment",
+        price: "AED 2,600,000",
+        location: "Jomana | Madinat Jumeirah Living",
+        area: "1091 sq.ft",
+        beds: 1,
+        baths: 2,
+        parking: 1,
+        image: img1,
+    },
+];

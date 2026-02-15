@@ -1,0 +1,137 @@
+/* src/pages/loginPage.css */
+
+.login {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px 16px;
+  background: #fff;
+  color: #111;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Inter, Arial, sans-serif;
+}
+
+.login-card {
+  width: 100%;
+  max-width: 420px;
+  border: 1px solid #e5e5e5;
+  border-radius: 14px;
+  padding: 22px;
+  background: #fff;
+}
+
+.login-brand {
+  display: flex;
+  justify-content: center;
+  text-decoration: none;
+  margin-bottom: 10px;
+}
+
+.login-logo {
+  height: 34px;
+  width: auto;
+  object-fit: contain;
+  filter: grayscale(1);
+}
+
+.login-head {
+  margin-bottom: 14px;
+  text-align: left;
+}
+
+.login-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.login-sub {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: #666;
+}
+
+.login-form {
+  display: grid;
+  gap: 12px;
+}
+
+.login-field {
+  display: grid;
+  gap: 6px;
+}
+
+.login-field span {
+  font-size: 12px;
+  font-weight: 600;
+  color: #222;
+}
+
+.login-field input {
+  height: 42px;
+  border-radius: 10px;
+  border: 1px solid #dcdcdc;
+  padding: 0 12px;
+  font-size: 14px;
+  outline: none;
+  background: #fff;
+}
+
+.login-field input:focus {
+  border-color: #111;
+  box-shadow: 0 0 0 3px rgba(17, 17, 17, 0.10);
+}
+
+.login-error {
+  border: 1px solid #111;
+  background: #f5f5f5;
+  color: #111;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 13px;
+}
+
+.login-btn {
+  height: 44px;
+  border-radius: 10px;
+  border: 1px solid #111;
+  background: #111;
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.login-btn:hover {
+  background: #000;
+  border-color: #000;
+}
+
+.login-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.login-foot {
+  margin-top: 14px;
+  font-size: 12.5px;
+  color: #666;
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+}
+
+.login-foot a {
+  color: #111;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.login-foot a:hover {
+  text-decoration: underline;
+}
+.login-logo {
+  height: 48px;   /* was ~34px */
+  width: auto;
+  object-fit: contain;
+  filter: grayscale(1);
+}

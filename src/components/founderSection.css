@@ -1,0 +1,159 @@
+/* =========================================================
+   FOUNDER SECTION — SLIGHTLY BIGGER (FINAL TUNE)
+   ========================================================= */
+
+.founder {
+    padding: 82px 0;
+    /* ↑ small bump */
+    background: #fff;
+}
+
+.founder-inner {
+    max-width: 1320px;
+    /* ↑ subtle width increase */
+    margin: 0 auto;
+    padding: 0 26px;
+}
+
+/* ================= GRID ================= */
+
+.founder-grid {
+    display: grid;
+    grid-template-columns: 1.12fr 0.88fr;
+    gap: 72px;
+    /* ↑ air */
+    align-items: stretch;
+}
+
+/* ================= LEFT ================= */
+
+.founder-left {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    height: 100%;
+    padding-top: 30px;
+    padding-bottom: 30px;
+}
+
+.founder-eyebrow {
+    font-family: Montserrat, sans-serif;
+    font-size: 12.5px;
+    /* ↑ tiny */
+    letter-spacing: 0.19em;
+    text-transform: uppercase;
+    color: rgb(78, 85, 98);
+    font-weight: 600;
+}
+
+.founder-title {
+    margin: 20px 0 26px;
+    font-family: Montserrat, sans-serif;
+    font-weight: 300;
+    font-size: 46px;
+    /* ↑ gentle */
+    line-height: 1.15;
+    letter-spacing: 0.042em;
+    text-transform: uppercase;
+    color: rgb(17, 24, 39);
+}
+
+.founder-bullets {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.founder-bullet {
+    display: grid;
+    grid-template-columns: 32px 1fr;
+    gap: 14px;
+    align-items: start;
+}
+
+.founder-check {
+    width: 24px;
+    /* ↑ */
+    height: 24px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-family: Montserrat, sans-serif;
+    font-weight: 700;
+    font-size: 12.5px;
+    color: rgb(17, 24, 39);
+    border: 1px solid rgba(15, 23, 42, 0.18);
+    margin-top: 4px;
+}
+
+.founder-text {
+    margin: 0;
+    font-family: Montserrat, sans-serif;
+    font-size: 17px;
+    /* ↑ */
+    line-height: 1.9;
+    color: rgb(78, 85, 98);
+    max-width: 680px;
+}
+
+/* ================= RIGHT ================= */
+
+.founder-right {
+    height: 100%;
+    display: flex;
+}
+
+.founder-photoWrap {
+    width: 100%;
+    height: 100%;
+    max-height: 560px;
+    /* ↑ final image presence */
+    border-radius: 20px;
+    overflow: hidden;
+    border: 1px solid rgba(15, 23, 42, 0.12);
+    background: #fff;
+}
+
+.founder-photo {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    filter: grayscale(100%);
+}
+
+/* ================= RESPONSIVE ================= */
+
+@media (max-width: 1024px) {
+    .founder-grid {
+        grid-template-columns: 1fr;
+        gap: 40px;
+    }
+
+    .founder-title {
+        font-size: 38px;
+    }
+
+    .founder-photoWrap {
+        max-height: 460px;
+    }
+}
+
+@media (max-width: 768px) {
+    .founder {
+        padding: 64px 0;
+    }
+
+    .founder-title {
+        font-size: 32px;
+    }
+
+    .founder-text {
+        font-size: 15.5px;
+    }
+
+    .founder-photoWrap {
+        max-height: 380px;
+    }
+}

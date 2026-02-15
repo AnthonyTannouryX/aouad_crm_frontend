@@ -1,0 +1,169 @@
+/* src/pages/mortgageCalculatorPage.css */
+
+.mc {
+    background: #fff;
+}
+
+/* top title like screenshot */
+.mc-topbar {
+    padding: 22px 0 0;
+}
+
+.mc-inner {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 0 24px;
+}
+
+.mc-page-title {
+    margin: 0;
+    font-size: 40px;
+    font-weight: 800;
+    color: rgb(17, 24, 39);
+}
+
+.mc-underline {
+    margin-top: 14px;
+    border-top: 1px solid rgba(15, 23, 42, 0.10);
+}
+
+/* main layout */
+.mc-grid {
+    display: grid;
+    grid-template-columns: 1.05fr 0.95fr;
+    gap: 34px;
+    padding: 46px 0 70px;
+    align-items: start;
+}
+
+/* LEFT */
+.mc-kicker {
+    margin: 0 0 18px;
+    font-family: Montserrat, sans-serif;
+    font-size: 28px;
+    font-weight: 300;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: rgb(17, 24, 39);
+}
+
+.mc-block {
+    margin-bottom: 26px;
+}
+
+.mc-h {
+    font-size: 18px;
+    font-weight: 800;
+    color: rgb(55, 65, 81);
+    margin: 0 0 8px;
+}
+
+.mc-p {
+    margin: 0;
+    font-size: 16px;
+    line-height: 28px;
+    color: rgb(107, 114, 128);
+    max-width: 720px;
+}
+
+/* RIGHT CARD */
+.mc-card {
+    border: 1px solid rgba(15, 23, 42, 0.10);
+    border-radius: 16px;
+    background: #fff;
+    padding: 18px;
+}
+
+.mc-form {
+    padding: 8px 10px 12px;
+}
+
+.mc-label {
+    display: block;
+    font-size: 14px;
+    font-weight: 700;
+    color: rgb(17, 24, 39);
+    margin: 14px 0 8px;
+}
+
+.mc-input {
+    width: 100%;
+    height: 46px;
+    border-radius: 12px;
+    border: 1px solid rgba(15, 23, 42, 0.18);
+    padding: 0 14px;
+    font-size: 15px;
+    outline: none;
+    color: rgb(17, 24, 39);
+}
+
+.mc-input:focus {
+    border-color: rgba(15, 23, 42, 0.35);
+}
+
+.mc-help {
+    margin-top: 8px;
+    font-size: 12px;
+    color: rgb(107, 114, 128);
+}
+
+/* results */
+.mc-result {
+    margin-top: 18px;
+    padding-top: 16px;
+    border-top: 1px solid rgba(15, 23, 42, 0.10);
+}
+
+.mc-result-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 0;
+    font-size: 14px;
+    color: rgb(55, 65, 81);
+}
+
+.mc-result-row strong {
+    color: rgb(17, 24, 39);
+    font-weight: 800;
+}
+
+.mc-result-row--big {
+    font-size: 15px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+}
+
+.mc-btn {
+    margin-top: 18px;
+    height: 44px;
+    padding: 0 18px;
+    border: 0;
+    border-radius: 12px;
+    background: #000;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.mc-btn:hover {
+    opacity: 0.92;
+}
+
+/* responsive */
+@media (max-width: 980px) {
+    .mc-page-title {
+        font-size: 32px;
+    }
+
+    .mc-grid {
+        grid-template-columns: 1fr;
+        gap: 22px;
+        padding: 34px 0 52px;
+    }
+
+    .mc-p {
+        max-width: 100%;
+    }
+}

@@ -1,0 +1,168 @@
+/* SECTION */
+.fop {
+    padding: 56px 0;
+    background: #f6f8fb;
+}
+
+.fop-inner {
+    max-width: 1180px;
+    /* smaller container */
+    margin: 0 auto;
+    padding: 0 20px;
+}
+
+/* TITLE */
+.fop-title {
+    margin: 0 0 20px;
+    font-family: Montserrat, sans-serif;
+    font-size: 26px;
+    /* ↓ from 34 */
+    font-weight: 300;
+    letter-spacing: 0.02em;
+    color: rgb(17, 24, 39);
+    text-transform: uppercase;
+}
+
+/* GRID */
+.fop-layout {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr;
+    gap: 20px;
+    /* ↓ spacing */
+}
+
+.fop-right {
+    display: grid;
+    grid-template-rows: 1fr 1fr;
+    gap: 20px;
+}
+
+/* CARD */
+.fop-card {
+    position: relative;
+    height: 260px;
+    /* ↓ from 360 */
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.fop-card--big {
+    height: 540px;
+    /* ↓ from 748 */
+}
+
+.fop-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* BADGES */
+.fop-badges {
+    position: absolute;
+    top: 14px;
+    left: 14px;
+    display: flex;
+    gap: 8px;
+    z-index: 3;
+}
+
+.fop-badge {
+    font-family: Montserrat, sans-serif;
+    font-size: 12px;
+    /* ↓ */
+    font-weight: 500;
+    padding: 5px 10px;
+    border-radius: 6px;
+    white-space: nowrap;
+}
+
+.fop-badge.light {
+    background: rgba(255, 255, 255, 0.85);
+    color: #111827;
+}
+
+.fop-badge.dark {
+    background: rgba(0, 0, 0, 0.55);
+    color: #fff;
+}
+
+/* OVERLAY */
+.fop-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to top,
+            rgba(0, 0, 0, 0.65),
+            rgba(0, 0, 0, 0.25),
+            rgba(0, 0, 0, 0));
+    z-index: 1;
+}
+
+/* CONTENT */
+.fop-content {
+    position: absolute;
+    bottom: 18px;
+    /* ↓ */
+    left: 18px;
+    right: 18px;
+    z-index: 2;
+    color: #fff;
+}
+
+.fop-name {
+    margin: 0;
+    font-family: Montserrat, sans-serif;
+    font-size: 22px;
+    /* ↓ from 30 */
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.fop-name span {
+    font-weight: 500;
+    font-size: 14px;
+    /* ↓ */
+}
+
+.fop-desc {
+    margin: 10px 0 14px;
+    max-width: 440px;
+    font-family: Montserrat, sans-serif;
+    font-size: 14px;
+    /* ↓ */
+    line-height: 20px;
+    font-weight: 400;
+    opacity: 0.95;
+
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+/* BUTTON */
+.fop-btn {
+    appearance: none;
+    border: none;
+    background: #000;
+    color: #fff;
+    font-family: Montserrat, sans-serif;
+    font-size: 13px;
+    /* ↓ */
+    font-weight: 500;
+    padding: 8px 14px;
+    /* ↓ */
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+/* RESPONSIVE */
+@media (max-width: 1024px) {
+    .fop-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .fop-card--big {
+        height: 340px;
+    }
+}

@@ -1,0 +1,334 @@
+.tm {
+  background: #fff;
+  font-family: Montserrat, sans-serif;
+  color: #111827;
+}
+
+/* HERO */
+.tm-hero {
+  height: 320px;
+  background-size: cover;
+  background-position: center;
+}
+
+/* CARD */
+.tm-cardWrap {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 24px;
+  transform: translateY(-80px);
+}
+
+.tm-card {
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid rgba(15, 23, 42, 0.14);
+  box-shadow: 0 10px 32px rgba(15, 23, 42, 0.06);
+  padding: 36px;
+}
+
+/* TOP ROW */
+.tm-topRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 32px;
+}
+
+/* LEFT BLOCK */
+.tm-leftBlock {
+  display: flex;
+  gap: 24px;
+  align-items: center;
+}
+
+/* AVATAR */
+.tm-avatar {
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  padding: 10px;
+  background: #f1f1f1;
+}
+
+.tm-avatar img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+/* NAME BLOCK */
+.tm-nameBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* ✅ LANGUAGE ROW (multiple pills) */
+.tm-langRow {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* LANGUAGE PILL */
+.tm-lang {
+  background: #6b6b6b;
+  color: #fff;
+  font-size: 14px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+}
+
+.tm-lang-check {
+  font-size: 12px;
+  opacity: 0.95;
+}
+
+/* NAME */
+.tm-name {
+  margin: 0;
+  font-size: 36px;
+  font-weight: 700;
+}
+
+/* ROLE */
+.tm-role {
+  font-size: 16px;
+  color: #6b7280;
+}
+
+/* CONTACT ROW */
+.tm-contactRow {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+/* EMAIL PILL */
+.tm-emailPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: #f9fafb;
+  color: #374151;
+  padding: 12px 18px;
+  border-radius: 10px;
+  text-decoration: none;
+  border: 1px solid rgba(15, 23, 42, 0.18);
+  white-space: nowrap;
+}
+
+/* BIO */
+.tm-bio {
+  margin-top: 26px;
+  font-size: 16px;
+  line-height: 1.7;
+  color: #4b5563;
+  max-width: 1000px;
+}
+
+/* UNDER */
+.tm-under {
+  max-width: 1280px;
+  margin: -40px auto 60px;
+  padding: 0 24px;
+}
+
+.tm-bc {
+  display: flex;
+  gap: 10px;
+  font-size: 15px;
+  color: #6b7280;
+}
+
+.tm-bc .strong {
+  font-weight: 600;
+  color: #374151;
+}
+
+.tm-bc .muted {
+  color: #9ca3af;
+}
+
+/* RESPONSIVE */
+@media (max-width: 900px) {
+  .tm-topRow {
+    flex-direction: column;
+  }
+
+  .tm-emailPill {
+    margin-top: 12px;
+  }
+}
+
+/* BIOGRAPHY SECTION */
+.tm-bioSection {
+  max-width: 1280px;
+  margin: 0 auto 80px;
+  padding: 0 24px;
+}
+
+.tm-bioTitle {
+  font-family: Montserrat, sans-serif;
+  font-size: 23px;
+  font-weight: 300;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgb(17, 24, 39);
+  margin: 40px 0 24px;
+}
+
+.tm-bioText {
+  max-width: 1000px;
+}
+
+.tm-bioText p {
+  font-family: Montserrat, sans-serif;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 24px;
+  color: rgb(78, 85, 98);
+  margin: 0 0 22px;
+}
+
+/* PROPERTIES */
+.tm-props {
+  max-width: 1280px;
+  margin: 0 auto 100px;
+  padding: 0 24px;
+}
+
+.tm-propsTitle {
+  font-size: 28px;
+  font-weight: 300;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  margin-bottom: 32px;
+}
+
+.tm-propsGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 28px;
+}
+
+.tm-propCard {
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.tm-propMedia {
+  position: relative;
+  height: 240px;
+}
+
+.tm-propMedia img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.tm-propBadges {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tm-badge {
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tm-badge.light {
+  background: #f3f4f6;
+}
+
+.tm-badge.dark {
+  background: #6b7280;
+  color: #fff;
+}
+
+.tm-badge.black {
+  background: #000;
+  color: #fff;
+}
+
+.tm-propBody {
+  padding: 20px;
+}
+
+.tm-propBody h3 {
+  margin: 0 0 10px;
+}
+
+.tm-propRow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  color: #6b7280;
+  font-size: 14px;
+  margin-bottom: 6px;
+}
+
+.tm-propDivider {
+  height: 1px;
+  background: rgba(0, 0, 0, 0.08);
+  margin: 14px 0;
+}
+
+.tm-propBottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.tm-propActions button {
+  background: #f3f4f6;
+  border: none;
+  padding: 8px;
+  border-radius: 8px;
+  margin-left: 6px;
+  cursor: pointer;
+}
+
+@media (max-width: 1000px) {
+  .tm-propsGrid {
+    grid-template-columns: 1fr;
+  }
+}
+/* AVATAR — ONLY THE PHOTO, no ring, no shadow */
+.tm-avatar {
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  padding: 0;        /* ✅ remove ring */
+  background: none;  /* ✅ remove ring */
+  box-shadow: none;  /* ✅ no shadow */
+  border: none;      /* optional */
+  overflow: hidden;  /* ✅ clip image perfectly */
+}
+
+.tm-avatar img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  box-shadow: none;  /* ✅ no shadow */
+  filter: none;      /* ✅ if you had grayscale before */
+}

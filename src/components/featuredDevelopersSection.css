@@ -1,0 +1,188 @@
+/* src/components/featuredDevelopersSection.css */
+
+.fd {
+    padding: 54px 0 68px;
+    background: #fff;
+}
+
+.fd-inner {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 0 24px;
+}
+
+/* ================= TITLE ================= */
+.fd-title {
+    margin: 0 0 22px;
+    font-family: Montserrat, sans-serif;
+    font-size: 28px;
+    font-weight: 300;
+    line-height: 36.4px;
+    text-transform: uppercase;
+    color: rgb(17, 24, 39);
+    letter-spacing: 0.06em;
+}
+
+/* ================= CAROUSEL ================= */
+.fd-scroll {
+    --fd-gap: 26px;
+    /* JS reads this */
+    display: flex;
+    gap: var(--fd-gap);
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    padding-bottom: 8px;
+
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+}
+
+.fd-scroll::-webkit-scrollbar {
+    height: 0;
+}
+
+/* 4 cards desktop */
+.fd-scroll .fd-card {
+    scroll-snap-align: start;
+    flex: 0 0 calc((100% - 26px * 3) / 4);
+}
+
+/* 2 cards tablet */
+@media (max-width: 1200px) {
+    .fd-scroll .fd-card {
+        flex: 0 0 calc((100% - 26px) / 2);
+    }
+}
+
+/* ================= CARD ================= */
+.fd-card {
+    background: #fff;
+    border: 1px solid rgba(15, 23, 42, 0.12);
+    border-radius: 14px;
+    overflow: hidden;
+
+    padding: 20px 20px 22px;
+
+    box-shadow: 0 1px 0 rgba(15, 23, 42, 0.03);
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+
+    justify-content: flex-start;
+}
+
+/* ================= LOGO ================= */
+.fd-logo {
+    height: 110px;
+    width: 100%;
+    display: grid;
+    place-items: center;
+
+    margin-top: -10px;
+    margin-bottom: 14px;
+}
+
+.fd-logo img {
+    max-height: 100%;
+    max-width: 88%;
+    object-fit: contain;
+    display: block;
+}
+
+/* ================= DESCRIPTION ================= */
+.fd-desc {
+    margin: 0;
+    font-family: Montserrat, sans-serif;
+    font-size: 15px;
+    font-weight: 400;
+    line-height: 24px;
+    color: rgb(100, 116, 139);
+    padding: 0 10px;
+}
+
+/* ================= DOTS ================= */
+.fd-dots {
+    margin-top: 18px;
+    display: flex;
+    justify-content: center;
+    gap: 14px;
+}
+
+.fd-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    background: rgb(225, 229, 235);
+}
+
+.fd-dot.is-active {
+    background: rgb(0, 0, 0);
+}
+
+/* ================= MOBILE ================= */
+@media (max-width: 640px) {
+    .fd {
+        padding: 36px 0 48px;
+    }
+
+    .fd-inner {
+        padding: 0 14px;
+    }
+
+    .fd-title {
+        font-size: 22px;
+        line-height: 30px;
+    }
+
+    /* ✅ 2 cards visible + smooth snapping */
+    .fd-scroll {
+        --fd-gap: 12px;
+        gap: var(--fd-gap);
+        padding-bottom: 10px;
+        touch-action: pan-x;
+
+        /* ✅ prevents last card being cut */
+        padding-right: 14px;
+        scroll-padding-left: 14px;
+        scroll-padding-right: 14px;
+    }
+
+    /* ✅ 2 on screen */
+    .fd-scroll .fd-card {
+        flex: 0 0 calc((100% - var(--fd-gap)) / 2);
+    }
+
+    .fd-card {
+        padding: 16px 12px 14px;
+        border-radius: 12px;
+    }
+
+    .fd-logo {
+        height: 84px;
+        margin-top: -6px;
+        margin-bottom: 8px;
+    }
+
+    .fd-logo img {
+        max-height: 78px;
+        max-width: 90%;
+    }
+
+    .fd-desc {
+        font-size: 13px;
+        line-height: 20px;
+        padding: 0;
+    }
+
+    .fd-dots {
+        margin-top: 14px;
+        gap: 10px;
+    }
+
+    .fd-dot {
+        width: 9px;
+        height: 9px;
+    }
+}
