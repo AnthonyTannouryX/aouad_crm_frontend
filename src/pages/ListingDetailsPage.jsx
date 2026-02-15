@@ -25,6 +25,8 @@ L.Icon.Default.mergeOptions({
 // Optional: try to force English labels by using an EN tile provider.
 const TILE_URL_EN = "https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png";
 
+const API_BASE = import.meta.env.VITE_API_BASE || "/api";
+
 export default function ListingDetailsPage() {
   const { id } = useParams();
 
@@ -39,18 +41,78 @@ export default function ListingDetailsPage() {
   useEffect(() => {
     let alive = true;
 
+    function normalizeOne(data) {
+      // Accept common shapes:
+      // { item }, { listing }, { data }, or direct object
+      const raw =
+        data?.item ||
+        data?.listing ||
+        data?.data ||
+        (data && typeof data === "object" && !Array.isArray(data) ? data : null);
+
+      if (!raw) return null;
+
+      // Map common backend field names -> UI field names (non-destructive)
+      const mapped = {
+        ...raw,
+
+        // Images
+        mainImageUrl:
+          raw.mainImageUrl || raw.coverImageUrl || raw.heroImageUrl || raw.imageUrl || "",
+
+        images:
+          Array.isArray(raw.images)
+            ? raw.images
+            : Array.isArray(raw.gallery)
+              ? raw.gallery
+              : Array.isArray(raw.media)
+                ? raw.media
+                : [],
+
+        // Developer/name fields
+        developerName: raw.developerName || raw.developer || raw.developer_name || "",
+
+        // Location labels
+        locationLabel:
+          raw.locationLabel ||
+          raw.location ||
+          raw.addressText ||
+          raw.address ||
+          [raw.country, raw.city, raw.area].filter(Boolean).join(", "),
+
+        // Pricing
+        startingPrice: raw.startingPrice ?? raw.priceFrom ?? raw.price ?? raw.starting_price,
+
+        // Misc
+        paymentPlan: raw.paymentPlan || raw.payment_plan || raw.plan || "",
+        completionYear: raw.completionYear || raw.handover || raw.completion_date || "",
+        addressText: raw.addressText || raw.address || raw.location || "",
+        community: raw.community || raw.area || "",
+      };
+
+      return mapped;
+    }
+
     async function load() {
       try {
         setLoading(true);
         setErr("");
 
-        const res = await fetch(`/api/public/listings/${id}`);
+        const res = await fetch(`${API_BASE}/public/listings/${id}`);
         const data = await res.json().catch(() => ({}));
 
         if (!res.ok) throw new Error(data?.error || "Failed to load listing");
         if (!alive) return;
 
-        setItem(data.item || null);
+        const normalized = normalizeOne(data);
+
+        if (!normalized) {
+          setItem(null);
+          setErr("Listing not found (empty response).");
+          return;
+        }
+
+        setItem(normalized);
       } catch (e) {
         console.error(e);
         if (!alive) return;
@@ -73,8 +135,12 @@ export default function ListingDetailsPage() {
     const arr = [];
 
     if (item.mainImageUrl) arr.push(item.mainImageUrl);
-    (item.images || []).forEach((im) => {
-      if (im?.url && im.url !== item.mainImageUrl) arr.push(im.url);
+
+    const candidates = Array.isArray(item.images) ? item.images : [];
+    candidates.forEach((im) => {
+      // supports both {url} and string url
+      const u = typeof im === "string" ? im : im?.url;
+      if (u && u !== item.mainImageUrl) arr.push(u);
     });
 
     return Array.from(new Set(arr));
@@ -135,16 +201,13 @@ export default function ListingDetailsPage() {
   };
 
   const formatSize = (it) => {
-    const sqm =
-      it?.sizeSqm != null && it?.sizeSqm !== "" ? Number(it.sizeSqm) : null;
-    const sqft =
-      it?.sizeSqft != null && it?.sizeSqft !== "" ? Number(it.sizeSqft) : null;
+    const sqm = it?.sizeSqm != null && it?.sizeSqm !== "" ? Number(it.sizeSqm) : null;
+    const sqft = it?.sizeSqft != null && it?.sizeSqft !== "" ? Number(it.sizeSqft) : null;
 
     const sqmOk = sqm != null && !Number.isNaN(sqm) && sqm > 0;
     const sqftOk = sqft != null && !Number.isNaN(sqft) && sqft > 0;
 
-    if (sqmOk && sqftOk)
-      return `${sqm.toLocaleString()} m² (${sqft.toLocaleString()} sqft)`;
+    if (sqmOk && sqftOk) return `${sqm.toLocaleString()} m² (${sqft.toLocaleString()} sqft)`;
     if (sqmOk) return `${sqm.toLocaleString()} m²`;
     if (sqftOk) return `${sqft.toLocaleString()} sqft`;
     return null;
@@ -162,12 +225,8 @@ export default function ListingDetailsPage() {
   }, [item]);
 
   // ✅ map values
-  const lat =
-    item?.latitude != null && item.latitude !== "" ? Number(item.latitude) : null;
-  const lng =
-    item?.longitude != null && item.longitude !== ""
-      ? Number(item.longitude)
-      : null;
+  const lat = item?.latitude != null && item.latitude !== "" ? Number(item.latitude) : null;
+  const lng = item?.longitude != null && item.longitude !== "" ? Number(item.longitude) : null;
   const hasMap = Number.isFinite(lat) && Number.isFinite(lng);
 
   // ✅ google maps link
@@ -196,9 +255,7 @@ export default function ListingDetailsPage() {
             <span className="ld-crumb ld-crumb--active">Error</span>
           </nav>
 
-          <div style={{ padding: 16, border: "1px solid #eee", borderRadius: 12 }}>
-            {err}
-          </div>
+          <div style={{ padding: 16, border: "1px solid #eee", borderRadius: 12 }}>{err}</div>
         </div>
       </section>
     );
@@ -209,8 +266,7 @@ export default function ListingDetailsPage() {
   // ✅ agent values
   const agentName = item.agent?.fullName || "Agent Name";
   const agentTitle = item.agent?.title || "Property Consultant";
-  const agentPhoto =
-    item.agent?.photoUrl || "https://via.placeholder.com/64x64?text=Agent";
+  const agentPhoto = item.agent?.photoUrl || "https://via.placeholder.com/64x64?text=Agent";
 
   const sizeLabel = formatSize(item);
 
@@ -232,12 +288,7 @@ export default function ListingDetailsPage() {
 
         {/* ===== GALLERY ===== */}
         <div className="ld-gallery">
-          <button
-            className="ld-main"
-            onClick={() => open(0)}
-            type="button"
-            disabled={!main}
-          >
+          <button className="ld-main" onClick={() => open(0)} type="button" disabled={!main}>
             {main ? <img src={main} alt={item.title} /> : <div className="ld-mainEmpty" />}
           </button>
 
@@ -264,17 +315,13 @@ export default function ListingDetailsPage() {
         <div className="ld-content">
           {/* LEFT */}
           <div className="ld-left">
-            <span className="ld-typebadge">
-              {item.propertyType || item.listingType || "Property"}
-            </span>
+            <span className="ld-typebadge">{item.propertyType || item.listingType || "Property"}</span>
 
             <h1 className="ld-title">{item.title}</h1>
             <div className="ld-sub">{item.developerName || ""}</div>
 
             <div className="ld-from">
-              {item.startingPrice
-                ? `From ${money(item.startingPrice, item.currency)}`
-                : "Price on request"}
+              {item.startingPrice ? `From ${money(item.startingPrice, item.currency)}` : "Price on request"}
             </div>
 
             {/* bedrooms / bathrooms / parking / size row */}
@@ -351,9 +398,7 @@ export default function ListingDetailsPage() {
 
                 <InfoRow
                   label="Starting Price"
-                  value={
-                    item.startingPrice ? money(item.startingPrice, item.currency) : "-"
-                  }
+                  value={item.startingPrice ? money(item.startingPrice, item.currency) : "-"}
                 />
               </div>
             </div>
@@ -393,10 +438,7 @@ export default function ListingDetailsPage() {
                       style={{ height: 280, width: "100%" }}
                       scrollWheelZoom={false}
                     >
-                      <TileLayer
-                        attribution="&copy; OpenStreetMap contributors"
-                        url={TILE_URL_EN}
-                      />
+                      <TileLayer attribution="&copy; OpenStreetMap contributors" url={TILE_URL_EN} />
                       <Marker position={[lat, lng]} />
                     </MapContainer>
                   </a>
@@ -416,8 +458,7 @@ export default function ListingDetailsPage() {
                   src={agentPhoto}
                   alt={agentName}
                   onError={(e) => {
-                    e.currentTarget.src =
-                      "https://via.placeholder.com/64x64?text=Agent";
+                    e.currentTarget.src = "https://via.placeholder.com/64x64?text=Agent";
                   }}
                 />
                 <div className="ld-agentmeta">
@@ -428,8 +469,7 @@ export default function ListingDetailsPage() {
 
               <div className="ld-cardtitle">SCHEDULE A CALL</div>
               <div className="ld-cardsub">
-                Fill out the form below, and one of our experts will contact you
-                shortly with more details.
+                Fill out the form below, and one of our experts will contact you shortly with more details.
               </div>
 
               <div className="ld-divider" />
@@ -497,12 +537,7 @@ export default function ListingDetailsPage() {
             </>
           )}
 
-          <img
-            className="lb-img"
-            src={imgs[lbIndex]}
-            alt=""
-            onClick={(e) => e.stopPropagation()}
-          />
+          <img className="lb-img" src={imgs[lbIndex]} alt="" onClick={(e) => e.stopPropagation()} />
         </div>
       )}
     </section>
