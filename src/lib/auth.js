@@ -1,4 +1,4 @@
-const KEY = "aouad_token";
+const KEY = "token"; // ✅ unified key
 
 export const setToken = (t) => localStorage.setItem(KEY, t);
 export const getToken = () => localStorage.getItem(KEY);
