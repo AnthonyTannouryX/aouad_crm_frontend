@@ -5,7 +5,7 @@ import "./hero.css";
 import img1 from "./assets/carousel1.jpg";
 import img2 from "./assets/carousel2.jpg";
 import img3 from "./assets/carousel3.jpg";
-import img4 from "./assets/carousel4.jpg";
+import img4 from "./assets/carousel3.jpg";
 
 const IMAGES = [img1, img2, img3, img4];
 

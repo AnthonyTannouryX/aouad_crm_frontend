@@ -1,8 +1,9 @@
 import "./featuredOffPlanProjects.css";
 
 import imgTrump from "../assets/OFF-PLAN/prop1.jpeg";
-import imgDVillas from "../assets/OFF-PLAN/23.jpg.png";
-import imgAlba from "../assets/OFF-PLAN/BATUMI, GEORGIA (5).jpg.png";
+import imgDVillas from "../assets/OFF-PLAN/prop1.jpeg";
+import imgAlba from "../assets/OFF-PLAN/prop1.jpeg";
+
 
 export default function FeaturedOffPlanProjects() {
     return (
