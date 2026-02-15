@@ -1,4 +1,5 @@
-const KEY = "token"; // ✅ unified key
+// src/lib/auth.js
+const KEY = "token"; // 🔴 MUST be "token"
 
 export const setToken = (t) => localStorage.setItem(KEY, t);
 export const getToken = () => localStorage.getItem(KEY);
