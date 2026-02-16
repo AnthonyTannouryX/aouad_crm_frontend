@@ -22,14 +22,14 @@ export default function ContactPage() {
                             <div className="contact-kv__row">
                                 <div className="contact-kv__label">Address:</div>
                                 <div className="contact-kv__value">
-                                    Office 802, Bay Gate Tower, Business Bay, Dubai
+                                    Floor 11, Tower 44, Dekwaneh, Beirut
                                 </div>
                             </div>
 
                             <div className="contact-kv__row">
                                 <div className="contact-kv__label">Phone:</div>
                                 <a className="contact-kv__link" href="tel:+971548880550">
-                                    +971 54 888 0550
+                                    +961 03 020339
                                 </a>
                             </div>
 
