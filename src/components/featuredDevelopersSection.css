@@ -24,17 +24,34 @@
 }
 
 /* ================= CAROUSEL ================= */
+/*
+    Key fixes:
+    - contain layout so horizontal scroll doesn't leak to the page
+    - consistent padding + scroll-padding
+    - make widths stable with flex-basis + gap variable
+  */
 .fd-scroll {
     --fd-gap: 26px;
-    /* JS reads this */
+
     display: flex;
     gap: var(--fd-gap);
-    overflow-x: auto;
-    scroll-snap-type: x mandatory;
-    padding-bottom: 8px;
 
-    -webkit-overflow-scrolling: touch;
+    overflow-x: auto;
+    overflow-y: hidden;
+
+    scroll-snap-type: x mandatory;
     scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+
+    /* keep content inside the section (prevents page-level overflow) */
+    max-width: 100%;
+    contain: layout paint;
+    overscroll-behavior-x: contain;
+
+    /* spacing so first/last card don't get clipped */
+    padding: 0 0 8px;
+    scroll-padding-left: 0px;
+    scroll-padding-right: 0px;
 }
 
 .fd-scroll::-webkit-scrollbar {
@@ -44,13 +61,13 @@
 /* 4 cards desktop */
 .fd-scroll .fd-card {
     scroll-snap-align: start;
-    flex: 0 0 calc((100% - 26px * 3) / 4);
+    flex: 0 0 calc((100% - (var(--fd-gap) * 3)) / 4);
 }
 
 /* 2 cards tablet */
 @media (max-width: 1200px) {
     .fd-scroll .fd-card {
-        flex: 0 0 calc((100% - 26px) / 2);
+        flex: 0 0 calc((100% - var(--fd-gap)) / 2);
     }
 }
 
@@ -62,15 +79,20 @@
     overflow: hidden;
 
     padding: 20px 20px 22px;
-
     box-shadow: 0 1px 0 rgba(15, 23, 42, 0.03);
 
     display: flex;
     flex-direction: column;
     align-items: center;
     text-align: center;
-
     justify-content: flex-start;
+
+    /* critical: don't allow internal content to expand flex item */
+    min-width: 0;
+}
+
+.fd-card * {
+    min-width: 0;
 }
 
 /* ================= LOGO ================= */
@@ -87,6 +109,8 @@
 .fd-logo img {
     max-height: 100%;
     max-width: 88%;
+    width: auto;
+    height: auto;
     object-fit: contain;
     display: block;
 }
@@ -100,6 +124,9 @@
     line-height: 24px;
     color: rgb(100, 116, 139);
     padding: 0 10px;
+
+    /* critical: long words won't force overflow */
+    overflow-wrap: anywhere;
 }
 
 /* ================= DOTS ================= */
@@ -136,20 +163,23 @@
         line-height: 30px;
     }
 
-    /* ✅ 2 cards visible + smooth snapping */
     .fd-scroll {
         --fd-gap: 12px;
         gap: var(--fd-gap);
-        padding-bottom: 10px;
-        touch-action: pan-x;
 
-        /* ✅ prevents last card being cut */
-        padding-right: 14px;
+        /* add symmetric padding so the carousel looks centered */
+        padding: 0 14px 10px;
         scroll-padding-left: 14px;
         scroll-padding-right: 14px;
+
+        touch-action: pan-x;
+
+        max-width: 100%;
+        overflow-x: auto;
+        overscroll-behavior-x: contain;
     }
 
-    /* ✅ 2 on screen */
+    /* 2 cards on screen */
     .fd-scroll .fd-card {
         flex: 0 0 calc((100% - var(--fd-gap)) / 2);
     }

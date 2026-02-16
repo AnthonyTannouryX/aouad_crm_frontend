@@ -5,7 +5,7 @@ import "./hero.css";
 import img1 from "./assets/carousel1.jpg";
 import img2 from "./assets/carousel2.jpg";
 import img3 from "./assets/carousel3.jpg";
-import img4 from "./assets/carousel3.jpg";
+import img4 from "./assets/carousel3.jpg"; // ✅ make sure this exists (or remove)
 
 const IMAGES = [img1, img2, img3, img4];
 
@@ -39,7 +39,7 @@ export default function Hero() {
 
     const rootRef = useRef(null);
 
-    /* ✅ CLOSE ON OUTSIDE TAP (DESKTOP + MOBILE) */
+    // ✅ Close on outside click / tap + ESC
     useEffect(() => {
         const close = (e) => {
             if (!rootRef.current?.contains(e.target)) setOpen(null);
@@ -59,7 +59,7 @@ export default function Hero() {
 
     return (
         <section className="hero">
-            <div className="hero-bg">
+            <div className="hero-bg" aria-hidden="true">
                 <div
                     className="hero-slide"
                     style={{ backgroundImage: `url(${bgImage})` }}
@@ -74,23 +74,18 @@ export default function Hero() {
 
                 <h1 className="hero-title">
                     <span className="hero-title-line1">Find Your Perfect Property</span>
-                    <span className="hero-title-break">WorldWide</span>
+                    <span className="hero-title-break">Worldwide</span>
                 </h1>
-
 
                 <p className="hero-subtitle">
                     Find your perfect property with your trusted advisor.
-                    <br />
-
                 </p>
 
                 <div className="hero-search" ref={rootRef}>
                     <Dropdown
                         value={listingType}
                         open={open === "listing"}
-                        onToggle={() =>
-                            setOpen(open === "listing" ? null : "listing")
-                        }
+                        onToggle={() => setOpen(open === "listing" ? null : "listing")}
                         options={OPTIONS.listingType}
                         onSelect={(v) => {
                             setListingType(v);
@@ -105,9 +100,7 @@ export default function Hero() {
                         searchable
                         value={community}
                         open={open === "community"}
-                        onToggle={() =>
-                            setOpen(open === "community" ? null : "community")
-                        }
+                        onToggle={() => setOpen(open === "community" ? null : "community")}
                         options={OPTIONS.community}
                         onSelect={(v) => {
                             setCommunity(v);
@@ -121,9 +114,7 @@ export default function Hero() {
                         grow
                         value={propertyType}
                         open={open === "type"}
-                        onToggle={() =>
-                            setOpen(open === "type" ? null : "type")
-                        }
+                        onToggle={() => setOpen(open === "type" ? null : "type")}
                         options={OPTIONS.propertyType}
                         onSelect={(v) => {
                             setPropertyType(v);
@@ -131,7 +122,7 @@ export default function Hero() {
                         }}
                     />
 
-                    <button className="hero-btn">
+                    <button className="hero-btn" type="button">
                         Search <FaSearch className="hero-ic--search" />
                     </button>
                 </div>
@@ -156,14 +147,15 @@ function Dropdown({
     }, [open]);
 
     const filtered = searchable
-        ? options.filter((o) =>
-            o.toLowerCase().includes(q.toLowerCase())
-        )
+        ? options.filter((o) => o.toLowerCase().includes(q.toLowerCase()))
         : options;
 
     return (
-        <div className={`hero-dd ${grow ? "hero-dd--grow" : ""} ${open ? "is-open" : ""}`}>
-            <button className="hero-field" onClick={onToggle}>
+        <div
+            className={`hero-dd ${grow ? "hero-dd--grow" : ""} ${open ? "is-open" : ""
+                }`}
+        >
+            <button className="hero-field" type="button" onClick={onToggle}>
                 <span className="hero-field-text">{value}</span>
                 <FaChevronDown className="hero-ic--chev" />
             </button>
@@ -185,8 +177,8 @@ function Dropdown({
                     {filtered.map((opt) => (
                         <button
                             key={opt}
-                            className={`hero-opt ${opt === value ? "is-active" : ""
-                                }`}
+                            type="button"
+                            className={`hero-opt ${opt === value ? "is-active" : ""}`}
                             onClick={() => onSelect(opt)}
                         >
                             {opt}

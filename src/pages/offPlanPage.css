@@ -192,7 +192,7 @@
 
 .op-card:hover {
     transform: translateY(-2px);
-    box-shadow: 0 10px 28px rgba(15, 23, 42, 0.10);
+    box-shadow: 0 10px 28px rgba(15, 23, 42, 0.1);
 }
 
 /* image area */
@@ -450,7 +450,7 @@
     }
 }
 
-/* ================= MORE FILTERS DRAWER ================= */
+/* ================= MORE FILTERS DRAWER (FIXED, NO OVERFLOW) ================= */
 
 .op-dim {
     position: fixed;
@@ -467,23 +467,39 @@
     pointer-events: auto;
 }
 
+/* ✅ FIX: do NOT use 110% offscreen translate */
 .op-drawer {
     position: fixed;
     top: 0;
     right: 0;
-    height: 100vh;
+
+    height: 100dvh;
     width: min(520px, 92vw);
+    max-width: 100vw;
+
     background: #fff;
-    transform: translateX(110%);
-    transition: transform 220ms ease;
+
+    transform: translate3d(100%, 0, 0);
+    transition: transform 220ms ease, visibility 220ms ease;
+
     z-index: 310;
+
     display: grid;
     grid-template-rows: auto 1fr auto;
+
     box-shadow: -18px 0 40px rgba(15, 23, 42, 0.18);
+
+    overflow-y: auto;
+    overflow-x: hidden;
+
+    visibility: hidden;
+    pointer-events: none;
 }
 
 .op-drawer.is-open {
-    transform: translateX(0);
+    transform: translate3d(0, 0, 0);
+    visibility: visible;
+    pointer-events: auto;
 }
 
 .op-drawerTop {
@@ -646,4 +662,209 @@
 
 .op-specsRow .op-specItem:last-child {
     margin-left: auto;
+}
+
+/* ================= OFFPLAN MOBILE FIXES (ADD AT END) ================= */
+
+/* prevent any “min-width” item from forcing overflow */
+.op,
+.op-inner,
+.op-filters,
+.op-row,
+.op-actions {
+    min-width: 0;
+}
+
+/* ---------- tablets/phones ---------- */
+@media (max-width: 900px) {
+
+    /* Filters become 2 columns (fine), but tighter */
+    .op-filters {
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+    }
+
+    .op-more {
+        grid-column: 1 / -1;
+        width: 100%;
+        justify-content: center;
+    }
+
+    /* Results row should never be side-by-side on small screens */
+    .op-row {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+    }
+
+    /* Actions area becomes a clean 2-column grid */
+    .op-actions {
+        width: 100%;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        align-items: stretch;
+    }
+
+    /* Kill desktop min-width that breaks mobile */
+    .op-sortPill {
+        min-width: 0;
+        width: 100%;
+    }
+
+    .op-map {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+/* ---------- small phones (your screenshot 375px) ---------- */
+@media (max-width: 520px) {
+
+    /* Filters become single column (prevents cramped pills) */
+    .op-filters {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    .op-pill {
+        height: 54px;
+        border-radius: 14px;
+    }
+
+    .op-pillSel {
+        font-size: 15px;
+    }
+
+    .op-row {
+        gap: 14px;
+    }
+
+    /* Actions stack vertically so nothing overlaps */
+    .op-actions {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    .op-sortPill {
+        height: 52px;
+        border-radius: 14px;
+    }
+
+    .op-sortSel {
+        font-size: 15px;
+    }
+
+    .op-map {
+        height: 52px;
+        border-radius: 14px;
+    }
+}
+
+/* ================= OFFPLAN: FORCE MOBILE RESPONSIVE (PUT LAST) ================= */
+
+@media (max-width: 640px) {
+
+    /* inner padding */
+    .op .op-inner {
+        padding: 0 16px !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+    }
+
+    /* 1-column filters */
+    .op .op-filters {
+        display: grid !important;
+        grid-template-columns: 1fr !important;
+        gap: 12px !important;
+        align-items: stretch !important;
+        width: 100% !important;
+        min-width: 0 !important;
+    }
+
+    /* make every filter pill full width */
+    .op .op-pill,
+    .op .op-more {
+        width: 100% !important;
+        min-width: 0 !important;
+    }
+
+    /* results row: stack */
+    .op .op-row {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: stretch !important;
+        justify-content: flex-start !important;
+        gap: 12px !important;
+        width: 100% !important;
+        min-width: 0 !important;
+    }
+
+    /* actions: stack vertically (NO overlap possible) */
+    .op .op-actions {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 12px !important;
+        width: 100% !important;
+        min-width: 0 !important;
+    }
+
+    /* sort + map full width */
+    .op .op-sortPill,
+    .op .op-map {
+        width: 100% !important;
+        min-width: 0 !important;
+        max-width: 100% !important;
+    }
+
+    /* kill any hidden min-width inside selects */
+    .op .op-sortSel,
+    .op .op-pillSel {
+        width: 100% !important;
+        min-width: 0 !important;
+    }
+}
+
+/* --- FORCE TOP ROW TO 1 LINE --- */
+.lop-top {
+    align-items: center;
+}
+
+/* title: 1 line + smaller */
+.lop-title {
+    white-space: nowrap;
+    /* ✅ no wrap */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    /* ✅ if super small phone, it truncates nicely */
+    font-size: 22px;
+    /* base smaller */
+    line-height: 1.1;
+    letter-spacing: 0.06em;
+    /* optional: looks like your screenshot */
+}
+
+/* view all: also 1 line + slightly smaller */
+.lop-viewall {
+    white-space: nowrap;
+    font-size: 14px;
+}
+
+/* extra tightening on small phones */
+@media (max-width: 520px) {
+    .lop-title {
+        font-size: 18px;
+        /* ✅ fits on iPhone width */
+    }
+
+    .lop-viewall {
+        font-size: 13px;
+        gap: 8px;
+    }
+
+    .lop-chev {
+        width: 16px;
+        height: 16px;
+    }
 }

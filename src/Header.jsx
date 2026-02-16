@@ -324,7 +324,7 @@ export default function Header() {
 
                     <MobileAccRow label="Company" open={openAcc === "company"} onToggle={() => toggleAcc("company")}>
                         <Link className="m-sub" to="/why-aouad" onClick={closeMobile}>
-                            CKE?
+                            Why Us?
                         </Link>
                         <Link className="m-sub" to="/our-team" onClick={closeMobile}>
                             Our Team

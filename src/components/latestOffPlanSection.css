@@ -12,38 +12,50 @@
     padding: 0 24px;
 }
 
-/* ================= TOP ROW ================= */
+/* ================= TOP ROW (FIX WRAP) ================= */
 .lop-top {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: space-between;
+    gap: 16px;
     margin-bottom: 22px;
 }
 
+/* ✅ let title take remaining space nicely */
 .lop-title {
     margin: 0;
+    flex: 1;
+    min-width: 0;
+    /* ✅ CRITICAL in flex layouts */
     font-family: Montserrat, sans-serif;
     font-size: 28px;
     font-weight: 300;
-    line-height: 36.4px;
+    line-height: 1.2;
     text-transform: uppercase;
     color: rgb(17, 24, 39);
     letter-spacing: 0.02em;
 }
 
+/* ✅ never wrap "View all" */
 .lop-viewall {
+    flex: 0 0 auto;
     display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
+    white-space: nowrap;
+    /* ✅ FIX */
     font-family: Montserrat, sans-serif;
     font-size: 16px;
     font-weight: 400;
     color: rgb(51, 61, 76);
     text-decoration: none;
+    padding: 6px 8px;
+    border-radius: 10px;
 }
 
 .lop-viewall:hover {
     color: rgb(15, 23, 42);
+    background: rgba(15, 23, 42, 0.05);
 }
 
 .lop-chev {
@@ -51,7 +63,23 @@
     height: 18px;
 }
 
-/* ================= HORIZONTAL CAROUSEL (SWIPE TO SEE 5TH) ================= */
+/* ✅ small screens: keep row stable */
+@media (max-width: 520px) {
+    .lop-inner {
+        padding: 0 18px;
+    }
+
+    .lop-title {
+        font-size: 22px;
+    }
+
+    .lop-viewall {
+        font-size: 15px;
+        padding: 6px 6px;
+    }
+}
+
+/* ================= HORIZONTAL CAROUSEL ================= */
 .lop-scroll {
     display: flex;
     gap: 26px;
@@ -62,13 +90,16 @@
 
     -webkit-overflow-scrolling: touch;
     scroll-behavior: smooth;
+
+    /* ✅ prevents hidden overflow from making page wider */
+    max-width: 100%;
 }
 
 .lop-scroll::-webkit-scrollbar {
     height: 0px;
 }
 
-/* 4 cards visible on desktop, but still scroll to reveal 5th */
+/* 4 cards visible on desktop, still scroll to reveal more */
 .lop-scroll .lop-card {
     scroll-snap-align: start;
     flex: 0 0 calc((100% - 26px * 3) / 4);
@@ -86,11 +117,6 @@
     .lop-scroll .lop-card {
         flex: 0 0 86%;
     }
-
-    .lop-title {
-        font-size: 22px;
-        line-height: 30px;
-    }
 }
 
 /* ================= DOTS UNDER CARDS ================= */
@@ -98,12 +124,12 @@
     margin-top: 22px;
     display: flex;
     justify-content: center;
-    gap: 16px;
+    gap: 12px;
 }
 
 .lop-section-dot {
-    width: 12px;
-    height: 12px;
+    width: 10px;
+    height: 10px;
     border-radius: 999px;
     background: rgb(225, 229, 235);
 }
@@ -114,12 +140,22 @@
 
 /* ================= CARD ================= */
 .lop-card {
+    text-decoration: none;
+    color: inherit;
+
     background: #fff;
     border: 1px solid rgba(15, 23, 42, 0.12);
-    border-radius: 12px;
+    border-radius: 14px;
     overflow: hidden;
     display: flex;
     flex-direction: column;
+
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.lop-card:hover {
+    transform: translateY(-2px);
+    box-shadow: rgba(15, 23, 42, 0.10) 0px 18px 45px -20px;
 }
 
 .lop-media {
@@ -138,51 +174,45 @@
 /* ================= BADGES ================= */
 .lop-badges {
     position: absolute;
-    top: 0;
-    left: 0;
-    margin-left: 16px;
-    margin-top: 16px;
+    top: 16px;
+    left: 16px;
     display: flex;
     flex-direction: column;
-    align-items: flex-start;
-    row-gap: 8px;
+    gap: 8px;
     z-index: 2;
 }
 
 .lop-badge {
-    box-sizing: border-box;
-    display: flex;
+    display: inline-flex;
     align-items: center;
     font-family: Montserrat, sans-serif;
     font-size: 12px;
-    font-weight: 500;
-    line-height: 12px;
-    padding: 4.2px 7.8px;
-    height: 20.3906px;
-    border-radius: 3.96px;
+    font-weight: 600;
+    padding: 6px 10px;
+    border-radius: 999px;
     white-space: nowrap;
 }
 
 .lop-badge--light {
-    background-color: rgb(224, 220, 216);
+    background: rgba(255, 255, 255, 0.85);
     color: rgb(0, 0, 0);
+    border: 1px solid rgba(15, 23, 42, 0.12);
 }
 
 .lop-badge--dark {
-    background-color: rgb(119, 120, 122);
-    color: rgb(255, 255, 255);
+    background: rgba(15, 23, 42, 0.75);
+    color: #fff;
 }
 
 .lop-badge--black {
-    background-color: rgb(0, 0, 0);
-    color: rgb(255, 255, 255);
+    background: #000;
+    color: #fff;
 }
 
 .lop-star {
     width: 14px;
     height: 14px;
     margin-left: 8px;
-    flex: 0 0 auto;
 }
 
 /* ================= BODY ================= */
@@ -197,17 +227,16 @@
     margin: 0 0 6px;
     font-family: Montserrat, sans-serif;
     font-size: 20px;
-    font-weight: 600;
-    line-height: 27px;
+    font-weight: 650;
+    line-height: 1.25;
     color: rgb(17, 24, 39);
 
-    height: 54px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    word-break: break-word;
+    /* clamp */
     display: -webkit-box;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
+    overflow: hidden;
+    min-height: 50px;
 }
 
 .lop-meta {
@@ -241,17 +270,20 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 12px;
 }
 
 .lop-from {
     font-family: Montserrat, sans-serif;
     font-size: 16px;
-    font-weight: 600;
-    line-height: 21.6px;
+    font-weight: 650;
     color: rgb(17, 24, 39);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-/* buttons smaller */
+/* buttons */
 .lop-actions {
     display: flex;
     gap: 8px;
@@ -260,27 +292,22 @@
 .lop-ico-btn {
     width: 38px;
     height: 38px;
-    border-radius: 10px;
-    border: none;
-    background: rgba(15, 23, 42, 0.06);
-    display: flex;
+    border-radius: 12px;
+    border: 1px solid rgba(15, 23, 42, 0.10);
+    background: rgba(15, 23, 42, 0.04);
+    display: inline-flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
+    transition: background 0.15s ease;
 }
 
 .lop-ico-btn:hover {
-    background: rgba(15, 23, 42, 0.10);
+    background: rgba(15, 23, 42, 0.08);
 }
 
 .lop-action-ico {
     width: 16px;
     height: 16px;
-    color: rgb(0, 0, 0);
-}
-
-/* keep Link looking exactly like the old <article> */
-.lop-card {
-    text-decoration: none;
-    color: inherit;
+    color: #000;
 }

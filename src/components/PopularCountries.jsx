@@ -26,7 +26,7 @@ export default function PopularCountries() {
   return (
     <section className="pc">
       <div className="pc-inner">
-        <h2 className="pc-title">POPULAR COUNTRIES</h2>
+        <h2 className="pc-title">COUNTRIES WE WORK IN</h2>
 
         <div className="pc-grid">
           {COUNTRIES.map((c) => (

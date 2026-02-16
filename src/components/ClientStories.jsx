@@ -62,7 +62,7 @@ export default function ClientStories() {
             <div className="cs-inner">
                 {/* HEADER */}
                 <div className="cs-top">
-                    <h2 className="cs-title">CLIENT STORIES</h2>
+                    <h2 className="cs-title">CLIENT FEEDBACK</h2>
                     <div className="cs-arrows">
                         <button className="cs-arrow" onClick={prev}>‹</button>
                         <button className="cs-arrow" onClick={next}>›</button>

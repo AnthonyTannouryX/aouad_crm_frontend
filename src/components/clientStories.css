@@ -36,7 +36,7 @@
     width: 44px;
     height: 44px;
     border-radius: 50%;
-    border: 1px solid rgba(15, 23, 42, .18);
+    border: 1px solid rgba(15, 23, 42, 0.18);
     background: #fff;
     cursor: pointer;
     font-size: 20px;
@@ -49,14 +49,20 @@
     background: #f8fafc;
     border-radius: 20px;
     overflow: hidden;
+    max-width: 100%;
 }
 
 /* FIXED IMAGE */
+.cs-image {
+    min-width: 0;
+}
+
 .cs-image img {
     width: 100%;
     height: 100%;
     object-fit: cover;
     filter: grayscale(100%);
+    display: block;
 }
 
 /* TEXT AREA */
@@ -65,31 +71,58 @@
     display: flex;
     flex-direction: column;
     justify-content: center;
+    min-width: 0;
+    /* critical in grid */
 }
 
 /* SLIDER */
 .cs-text-viewport {
+    /* one slide per viewport width */
     display: grid;
     grid-auto-flow: column;
     grid-auto-columns: 100%;
+
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+
     overflow-x: auto;
+    overflow-y: hidden;
+
     scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+
+    /* avoid small overflow artifacts */
+    scroll-behavior: smooth;
 }
 
 .cs-text-viewport::-webkit-scrollbar {
     height: 0;
 }
 
+/* each slide MUST fit viewport */
 .cs-text-slide {
     scroll-snap-align: start;
-    max-width: 560px;
+    width: 100%;
+    max-width: 100%;
+    /* ✅ remove the 560px overflow */
+    min-width: 0;
+    padding-right: 0;
+}
+
+.cs-text {
+    min-width: 0;
 }
 
 .cs-text p {
-    margin-bottom: 22px;
+    margin: 0 0 22px;
     font-size: 16px;
     line-height: 1.7;
     color: rgb(51, 61, 76);
+
+    /* never let long words force overflow */
+    overflow-wrap: anywhere;
 }
 
 /* AUTHOR */
@@ -97,11 +130,13 @@
     display: flex;
     gap: 14px;
     margin-top: 28px;
+    min-width: 0;
 }
 
 .cs-avatar {
     width: 44px;
     height: 44px;
+    flex: 0 0 44px;
     border-radius: 50%;
     background: #d1d5db;
     display: flex;
@@ -141,12 +176,25 @@
 
 /* MOBILE */
 @media (max-width: 900px) {
+    .cs {
+        padding: 52px 0;
+    }
+
+    .cs-inner {
+        padding: 0 14px;
+    }
+
     .cs-card {
         grid-template-columns: 1fr;
     }
 
+    /* give image a predictable height on mobile */
+    .cs-image img {
+        height: 220px;
+    }
+
     .cs-text-area {
-        padding: 32px;
+        padding: 24px 18px;
     }
 
     .cs-dots {

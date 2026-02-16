@@ -299,3 +299,27 @@
         /* still line 2 */
     }
 }
+
+.hero,
+.hero-section,
+.hero-wrap {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
+.hero img,
+.hero video,
+.hero picture {
+    max-width: 100%;
+    height: auto;
+    display: block;
+}
+
+@media (max-width: 900px) {
+    .hero-inner {
+        padding-top: 86px;
+    }
+
+    /* instead of 120px */
+}

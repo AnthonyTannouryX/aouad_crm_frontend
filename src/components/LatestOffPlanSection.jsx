@@ -107,7 +107,7 @@ export default function LatestOffPlanSection() {
     <section className="lop">
       <div className="lop-inner">
         <div className="lop-top">
-          <h2 className="lop-title">LATEST OFF-PLAN PROPERTIES</h2>
+          <h2 className="lop-title">LATEST PROJECTS</h2>
 
           <Link
             to="/off-plan"
