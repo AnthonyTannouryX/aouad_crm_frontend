@@ -1,4 +1,3 @@
-// frontend/src/admin/pages/AgentsPage.jsx
 import { useEffect, useMemo, useRef, useState } from "react";
 import "./AgentsPage.css";
 
@@ -35,6 +34,12 @@ function avatarUrl(fullName) {
   )}&background=0D1B2A&color=ffffff&bold=true&size=128`;
 }
 
+function tokenOrThrow() {
+  const token = localStorage.getItem("token");
+  if (!token) throw new Error("Missing token. Please login again.");
+  return token;
+}
+
 export default function AgentsPage() {
   const fileRef = useRef(null);
 
@@ -44,12 +49,20 @@ export default function AgentsPage() {
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const [deletingId, setDeletingId] = useState(null);
+  const [togglingId, setTogglingId] = useState(null);
 
   const [photoFile, setPhotoFile] = useState(null);
   const [photoPreview, setPhotoPreview] = useState(null);
 
   const [error, setError] = useState("");
+
+  // show inactive
+  const [showHidden, setShowHidden] = useState(false);
+
+  // edit mode
+  const [mode, setMode] = useState("create"); // "create" | "edit"
+  const [editingId, setEditingId] = useState(null);
+  const [existingPhotoUrl, setExistingPhotoUrl] = useState(null);
 
   // ✅ Languages are now an array (checkboxes)
   const LANG_OPTIONS = ["Arabic", "English", "French"];
@@ -58,12 +71,13 @@ export default function AgentsPage() {
     fullName: "",
     email: "",
     phone: "",
-    password: "",
+    password: "", // create required
+    newPassword: "", // edit optional
 
     slug: "",
     title: "Property Consultant",
     bio: "",
-    languages: ["English"], // ✅ default
+    languages: ["English"],
     sortOrder: 0,
   });
 
@@ -77,7 +91,9 @@ export default function AgentsPage() {
   const toggleLang = (lang) => {
     setForm((p) => {
       const has = p.languages.includes(lang);
-      const next = has ? p.languages.filter((x) => x !== lang) : [...p.languages, lang];
+      const next = has
+        ? p.languages.filter((x) => x !== lang)
+        : [...p.languages, lang];
       return { ...p, languages: next };
     });
   };
@@ -92,20 +108,25 @@ export default function AgentsPage() {
     return () => URL.revokeObjectURL(url);
   }, [photoFile]);
 
-  async function loadAgents() {
+  async function loadAgents(opts = {}) {
+    const includeInactive = opts.includeInactive ?? showHidden;
+
     setLoading(true);
     try {
       setError("");
-      const token = localStorage.getItem("token");
-      if (!token) throw new Error("Missing token. Please login again.");
+      const token = tokenOrThrow();
 
-      const res = await fetch(`${API_BASE}/users?role=AGENT`, {
+      const qs = new URLSearchParams();
+      qs.set("role", "AGENT");
+      if (includeInactive) qs.set("includeInactive", "true");
+
+      const res = await fetch(`${API_BASE}/users?${qs.toString()}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error || "Failed to load agents");
-      setAgents(data.items || []);
+      setAgents(Array.isArray(data.items) ? data.items : []);
     } catch (e) {
       console.error(e);
       setAgents([]);
@@ -116,8 +137,9 @@ export default function AgentsPage() {
   }
 
   useEffect(() => {
-    loadAgents();
-  }, []);
+    loadAgents({ includeInactive: showHidden });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showHidden]);
 
   const canCreate = useMemo(() => {
     return (
@@ -127,8 +149,19 @@ export default function AgentsPage() {
     );
   }, [form.fullName, form.email, form.password]);
 
-  const openModal = () => {
-    setError("");
+  const canEdit = useMemo(() => {
+    if (form.fullName.trim().length < 2) return false;
+    if (!form.email.trim().includes("@")) return false;
+    if (form.newPassword && form.newPassword.trim().length > 0) {
+      return form.newPassword.trim().length >= 6;
+    }
+    return true;
+  }, [form.fullName, form.email, form.newPassword]);
+
+  const resetFormCreate = () => {
+    setMode("create");
+    setEditingId(null);
+    setExistingPhotoUrl(null);
     setPhotoFile(null);
     setPhotoPreview(null);
     setForm({
@@ -136,12 +169,43 @@ export default function AgentsPage() {
       email: "",
       phone: "",
       password: "",
+      newPassword: "",
       slug: "",
       title: "Property Consultant",
       bio: "",
       languages: ["English"],
       sortOrder: 0,
     });
+  };
+
+  const openCreateModal = () => {
+    setError("");
+    resetFormCreate();
+    setOpen(true);
+  };
+
+  const openEditModal = (agent) => {
+    setError("");
+    setMode("edit");
+    setEditingId(agent.id);
+    setExistingPhotoUrl(agent.photoUrl || null);
+    setPhotoFile(null);
+    setPhotoPreview(null);
+
+    setForm({
+      fullName: agent.fullName || "",
+      email: agent.email || "",
+      phone: agent.phone || "",
+      password: "", // unused in edit
+      newPassword: "",
+
+      slug: agent.slug || "",
+      title: agent.title || "Property Consultant",
+      bio: agent.bio || "",
+      languages: Array.isArray(agent.languages) && agent.languages.length ? agent.languages : ["English"],
+      sortOrder: Number(agent.sortOrder) || 0,
+    });
+
     setOpen(true);
   };
 
@@ -161,7 +225,6 @@ export default function AgentsPage() {
       return;
     }
 
-    // ✅ 7MB limit
     if (f.size > 7 * 1024 * 1024) {
       setError("Image is too large. Max 7MB.");
       return;
@@ -175,70 +238,115 @@ export default function AgentsPage() {
   const removePhoto = () => {
     setPhotoFile(null);
     setPhotoPreview(null);
+    // In edit mode, removing means "clear photo"
+    if (mode === "edit") setExistingPhotoUrl(null);
+  };
+
+  const uploadPhotoIfAny = async (token) => {
+    // If user picked a new file, upload it and return the new public URL
+    if (photoFile) {
+      const presignRes = await fetch(`${API_BASE}/uploads/presign`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          type: "agent-photo",
+          contentType: photoFile.type || "application/octet-stream",
+          ext: fileExt(photoFile),
+        }),
+      });
+
+      const presignData = await presignRes.json().catch(() => ({}));
+      if (!presignRes.ok) throw new Error(presignData?.error || "Presign failed");
+
+      const first = presignData?.uploads?.[0];
+      if (!first?.uploadUrl || !first?.publicUrl) {
+        throw new Error("Presign response missing uploadUrl/publicUrl");
+      }
+
+      await putToSignedUrl(first.uploadUrl, photoFile);
+      return first.publicUrl;
+    }
+
+    // No new file picked:
+    // - create mode: null
+    // - edit mode: keep existingPhotoUrl (may be null if user removed)
+    return mode === "edit" ? existingPhotoUrl : null;
   };
 
   const onSubmit = async (e) => {
     e.preventDefault();
-    if (!canCreate || saving) return;
+    if (saving) return;
+
+    if (mode === "create" && !canCreate) return;
+    if (mode === "edit" && !canEdit) return;
 
     setSaving(true);
     setError("");
 
     try {
-      const token = localStorage.getItem("token");
-      if (!token) throw new Error("Missing token. Please login again.");
+      const token = tokenOrThrow();
 
       const finalSlug = form.slug.trim() ? slugify(form.slug) : suggestedSlug;
       if (!finalSlug) throw new Error("Slug cannot be empty.");
 
-      // 1) Upload photo (optional)
-      let photoUrl = null;
+      const photoUrl = await uploadPhotoIfAny(token);
 
-      if (photoFile) {
-        const presignRes = await fetch(`${API_BASE}/uploads/presign`, {
+      if (mode === "create") {
+        const payload = {
+          fullName: form.fullName.trim(),
+          email: form.email.trim().toLowerCase(),
+          phone: form.phone.trim() ? form.phone.trim() : null,
+          password: form.password.trim(),
+
+          slug: finalSlug,
+          title: form.title.trim() ? form.title.trim() : null,
+          bio: form.bio.trim() ? form.bio.trim() : null,
+          languages: Array.isArray(form.languages) ? form.languages : [],
+          photoUrl,
+          sortOrder: Number(form.sortOrder) || 0,
+        };
+
+        const res = await fetch(`${API_BASE}/users`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({
-            type: "agent-photo",
-            contentType: photoFile.type || "application/octet-stream",
-            ext: fileExt(photoFile),
-          }),
+          body: JSON.stringify(payload),
         });
 
-        const presignData = await presignRes.json().catch(() => ({}));
-        if (!presignRes.ok) throw new Error(presignData?.error || "Presign failed");
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data?.error || "Failed to create agent");
 
-        const first = presignData?.uploads?.[0];
-        if (!first?.uploadUrl || !first?.publicUrl) {
-          throw new Error("Presign response missing uploadUrl/publicUrl");
-        }
-
-        await putToSignedUrl(first.uploadUrl, photoFile);
-        photoUrl = first.publicUrl;
+        setOpen(false);
+        await loadAgents({ includeInactive: showHidden });
+        return;
       }
 
-      // 2) Create agent
+      // edit
       const payload = {
         fullName: form.fullName.trim(),
         email: form.email.trim().toLowerCase(),
         phone: form.phone.trim() ? form.phone.trim() : null,
-        password: form.password.trim(),
 
         slug: finalSlug,
         title: form.title.trim() ? form.title.trim() : null,
         bio: form.bio.trim() ? form.bio.trim() : null,
-
         languages: Array.isArray(form.languages) ? form.languages : [],
-
-        photoUrl,
+        photoUrl: photoUrl || null,
         sortOrder: Number(form.sortOrder) || 0,
       };
 
-      const res = await fetch(`${API_BASE}/users`, {
-        method: "POST",
+      // optional password change (backend expects "password")
+      if (form.newPassword && form.newPassword.trim().length > 0) {
+        payload.password = form.newPassword.trim();
+      }
+
+      const res = await fetch(`${API_BASE}/users/${editingId}`, {
+        method: "PATCH",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
@@ -247,10 +355,10 @@ export default function AgentsPage() {
       });
 
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.error || "Failed to create agent");
+      if (!res.ok) throw new Error(data?.error || "Failed to update agent");
 
       setOpen(false);
-      await loadAgents();
+      await loadAgents({ includeInactive: showHidden });
     } catch (err) {
       console.error(err);
       setError(err.message || "Something went wrong.");
@@ -259,41 +367,48 @@ export default function AgentsPage() {
     }
   };
 
-  // ✅ DELETE agent (soft delete via backend)
-  const onDeleteAgent = async (agent) => {
-    if (deletingId) return;
+  // ✅ Hide/Unhide (isActive toggle)
+  const setAgentActive = async (agent, nextActive) => {
+    if (togglingId) return;
 
-    const ok = window.confirm(
-      `Delete agent "${agent.fullName}"?\n\nThis will remove them from the team/admin list.`
-    );
+    const verb = nextActive ? "Unhide" : "Hide";
+    const ok = window.confirm(`${verb} agent "${agent.fullName}"?`);
     if (!ok) return;
 
-    setDeletingId(agent.id);
+    setTogglingId(agent.id);
     setError("");
 
-    try {
-      const token = localStorage.getItem("token");
-      if (!token) throw new Error("Missing token. Please login again.");
+    // optimistic UI
+    setAgents((prev) =>
+      prev.map((x) => (x.id === agent.id ? { ...x, isActive: nextActive } : x))
+    );
 
-      // optimistic UI
-      setAgents((prev) => prev.filter((x) => x.id !== agent.id));
+    try {
+      const token = tokenOrThrow();
 
       const res = await fetch(`${API_BASE}/users/${agent.id}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ isActive: nextActive }),
       });
 
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        // rollback if failed
-        await loadAgents();
-        throw new Error(data?.error || "Failed to delete agent");
+        await loadAgents({ includeInactive: showHidden });
+        throw new Error(data?.error || "Failed to update agent");
+      }
+
+      if (!showHidden && nextActive === false) {
+        setAgents((prev) => prev.filter((x) => x.id !== agent.id));
       }
     } catch (e) {
       console.error(e);
-      setError(e.message || "Failed to delete agent");
+      setError(e.message || "Failed to update agent");
     } finally {
-      setDeletingId(null);
+      setTogglingId(null);
     }
   };
 
@@ -305,9 +420,21 @@ export default function AgentsPage() {
             <div className="ag-title">Agents</div>
             <div className="ag-sub">Manage your team members and their profiles.</div>
           </div>
-          <button className="ag-btn ag-btnPrimary" type="button" onClick={openModal}>
-            + Add Agent
-          </button>
+
+          <div className="ag-topRight">
+            <label className={`ag-pill ${showHidden ? "is-on" : ""}`}>
+              <input
+                type="checkbox"
+                checked={showHidden}
+                onChange={(e) => setShowHidden(e.target.checked)}
+              />
+              <span>Show hidden</span>
+            </label>
+
+            <button className="ag-btn ag-btnPrimary" type="button" onClick={openCreateModal}>
+              + Add Agent
+            </button>
+          </div>
         </div>
 
         {error && <div className="ag-alert">{error}</div>}
@@ -319,44 +446,78 @@ export default function AgentsPage() {
         ) : (
           <div className="ag-list">
             {agents.length === 0 ? (
-              <div className="ag-empty">No agents yet.</div>
+              <div className="ag-empty">
+                {showHidden ? "No agents (active or hidden)." : "No active agents yet."}
+              </div>
             ) : (
-              agents.map((a) => (
-                <div key={a.id} className="ag-row">
-                  <div className="ag-left">
-                    <img
-                      className="ag-avatar"
-                      src={a.photoUrl || avatarUrl(a.fullName)}
-                      alt={a.fullName || "Agent"}
-                      onError={(e) => {
-                        e.currentTarget.src = avatarUrl("Agent");
-                      }}
-                    />
-                    <div className="ag-meta">
-                      <div className="ag-name">{a.fullName}</div>
-                      <div className="ag-line">
-                        {a.title || "Property Consultant"} · {a.email}
+              agents.map((a) => {
+                const isHidden = a.isActive === false;
+
+                return (
+                  <div key={a.id} className={`ag-row ${isHidden ? "is-hidden" : ""}`}>
+                    <div className="ag-left">
+                      <img
+                        className="ag-avatar"
+                        src={a.photoUrl || avatarUrl(a.fullName)}
+                        alt={a.fullName || "Agent"}
+                        onError={(e) => {
+                          e.currentTarget.src = avatarUrl("Agent");
+                        }}
+                      />
+                      <div className="ag-meta">
+                        <div className="ag-name">
+                          {a.fullName}
+                          {isHidden && <span className="ag-badge">Hidden</span>}
+                        </div>
+
+                        <div className="ag-line">
+                          {a.title || "Property Consultant"} · {a.email}
+                        </div>
+
+                        {!!a.languages?.length && (
+                          <div className="ag-line ag-lineMuted">{a.languages.join(" · ")}</div>
+                        )}
                       </div>
-                      {!!a.languages?.length && (
-                        <div className="ag-line ag-lineMuted">{a.languages.join(" · ")}</div>
+                    </div>
+
+                    <div className="ag-actions">
+                      <div className="ag-slug">{a.slug ? `/${a.slug}` : ""}</div>
+
+                      <button
+                        type="button"
+                        onClick={() => openEditModal(a)}
+                        className="ag-btn ag-btnGhost"
+                        title="Edit agent"
+                        disabled={togglingId === a.id}
+                      >
+                        Edit
+                      </button>
+
+                      {isHidden ? (
+                        <button
+                          type="button"
+                          onClick={() => setAgentActive(a, true)}
+                          disabled={togglingId === a.id}
+                          className="ag-btn ag-btnGhost"
+                          title="Unhide agent"
+                        >
+                          {togglingId === a.id ? "Saving…" : "Unhide"}
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setAgentActive(a, false)}
+                          disabled={togglingId === a.id}
+                          className="ag-btn ag-btnDanger"
+                          title="Hide agent"
+                        >
+                          {togglingId === a.id ? "Saving…" : "Hide"}
+                        </button>
                       )}
                     </div>
                   </div>
-
-                  <div className="ag-actions">
-                    <div className="ag-slug">{a.slug ? `/${a.slug}` : ""}</div>
-                    <button
-                      type="button"
-                      onClick={() => onDeleteAgent(a)}
-                      disabled={deletingId === a.id}
-                      className="ag-btn ag-btnDanger"
-                      title="Delete agent"
-                    >
-                      {deletingId === a.id ? "Deleting…" : "Delete"}
-                    </button>
-                  </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         )}
@@ -368,15 +529,18 @@ export default function AgentsPage() {
           <div className="ag-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
             <div className="ag-modalHeader">
               <div>
-                <div className="ag-modalTitle">Add Agent</div>
-                <div className="ag-modalSub">Create a new agent and upload a profile photo.</div>
+                <div className="ag-modalTitle">{mode === "edit" ? "Edit Agent" : "Add Agent"}</div>
+                <div className="ag-modalSub">
+                  {mode === "edit"
+                    ? "Update agent profile. Leave password empty to keep it unchanged."
+                    : "Create a new agent and upload a profile photo."}
+                </div>
               </div>
               <button className="ag-btn ag-btnGhost" type="button" onClick={closeModal} disabled={saving}>
                 Close
               </button>
             </div>
 
-            {/* ✅ form becomes the scrollable area */}
             <form onSubmit={onSubmit} className="ag-form">
               <div className="ag-grid">
                 {/* PHOTO */}
@@ -386,6 +550,8 @@ export default function AgentsPage() {
                   <div className="ag-drop" onClick={pickPhoto} role="button" tabIndex={0}>
                     {photoPreview ? (
                       <img className="ag-photoPreview" src={photoPreview} alt="Preview" />
+                    ) : existingPhotoUrl ? (
+                      <img className="ag-photoPreview" src={existingPhotoUrl} alt="Current" />
                     ) : (
                       <div className="ag-dropInner">
                         <div className="ag-dropTitle">Click to upload</div>
@@ -410,8 +576,8 @@ export default function AgentsPage() {
                       type="button"
                       className="ag-btn ag-btnGhost"
                       onClick={removePhoto}
-                      disabled={saving || !photoFile}
-                      style={{ opacity: !photoFile ? 0.55 : 1 }}
+                      disabled={saving || (!photoFile && !existingPhotoUrl)}
+                      style={{ opacity: !photoFile && !existingPhotoUrl ? 0.55 : 1 }}
                     >
                       Remove
                     </button>
@@ -436,15 +602,28 @@ export default function AgentsPage() {
                       <input className="ag-input" value={form.phone} onChange={set("phone")} />
                     </div>
 
-                    <div>
-                      <div className="ag-label">Password (min 6) *</div>
-                      <input
-                        className="ag-input"
-                        type="password"
-                        value={form.password}
-                        onChange={set("password")}
-                      />
-                    </div>
+                    {mode === "create" ? (
+                      <div>
+                        <div className="ag-label">Password (min 6) *</div>
+                        <input
+                          className="ag-input"
+                          type="password"
+                          value={form.password}
+                          onChange={set("password")}
+                        />
+                      </div>
+                    ) : (
+                      <div>
+                        <div className="ag-label">New password (optional)</div>
+                        <input
+                          className="ag-input"
+                          type="password"
+                          value={form.newPassword}
+                          onChange={set("newPassword")}
+                          placeholder="Leave empty to keep current"
+                        />
+                      </div>
+                    )}
 
                     <div className="ag-span2">
                       <div className="ag-label">Title</div>
@@ -491,27 +670,39 @@ export default function AgentsPage() {
                     </div>
 
                     <div className="ag-span2">
-                      <div className="ag-label">Bio</div>
-                      <textarea
-                        className="ag-textarea"
-                        value={form.bio}
-                        onChange={set("bio")}
-                        style={{ minHeight: 120 }}
+                      <div className="ag-label">Sort order</div>
+                      <input
+                        className="ag-input"
+                        type="number"
+                        value={form.sortOrder}
+                        onChange={set("sortOrder")}
                       />
+                      <div className="ag-hint">Lower comes first.</div>
+                    </div>
+
+                    <div className="ag-span2">
+                      <div className="ag-label">Bio</div>
+                      <textarea className="ag-textarea" value={form.bio} onChange={set("bio")} style={{ minHeight: 120 }} />
                     </div>
                   </div>
                 </div>
               </div>
 
               <div className="ag-footer">
-                <div className="ag-footNote">Required: full name, email, password.</div>
+                <div className="ag-footNote">
+                  {mode === "create" ? "Required: full name, email, password." : "Required: full name, email."}
+                </div>
 
                 <div className="ag-footerBtns">
                   <button type="button" className="ag-btn ag-btnGhost" onClick={closeModal} disabled={saving}>
                     Cancel
                   </button>
-                  <button type="submit" className="ag-btn ag-btnPrimary" disabled={!canCreate || saving}>
-                    {saving ? "Creating..." : "Create Agent"}
+                  <button
+                    type="submit"
+                    className="ag-btn ag-btnPrimary"
+                    disabled={mode === "create" ? !canCreate || saving : !canEdit || saving}
+                  >
+                    {saving ? "Saving..." : mode === "edit" ? "Save changes" : "Create Agent"}
                   </button>
                 </div>
               </div>
