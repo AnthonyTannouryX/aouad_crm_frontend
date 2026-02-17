@@ -37,30 +37,28 @@ export default function WhyAouadPage() {
 
                     {/* LEFT */}
                     <div className="whyAouad-left">
-                        <h2 className="whyAouad-h2">WHY OUR CLIENTS WORK WITH US</h2>
+                        <h2 className="whyAouad-h2">WHY CLIENTS CHOOSE AOUAD</h2>
                         <p className="whyAouad-lead">
-                            Invest with certainty. Be guided by expertise and personalized care.
+                            Invest with confidence. Guided by strategy, expertise, and a client-first approach.
                         </p>
 
                         <div className="whyAouad-bullets">
                             <div className="whyAouad-bullet">
                                 <span className="whyAouad-check" aria-hidden="true">✓</span>
                                 <p className="whyAouad-bulletText">
-                                    At Aouad Real Estate, we go beyond transactions. We build trust and
-                                    relationships, offering a seamless journey tailored to each client.
-                                    Our deep understanding of Dubai’s property market enables us to provide
-                                    strategic guidance and ensure every decision is well-informed for
-                                    long-term value.
+                                    At AOUAD, we operate beyond transactions. We build long-term partnerships founded
+                                    on trust, discretion, and performance. Our in-depth understanding of local and
+                                    international property markets allows us to deliver strategic advice and position
+                                    every client for sustainable long-term value.
                                 </p>
                             </div>
 
                             <div className="whyAouad-bullet">
                                 <span className="whyAouad-check" aria-hidden="true">✓</span>
                                 <p className="whyAouad-bulletText">
-                                    From the first conversation to handing over the keys, we make the process
-                                    smooth and stress-free, offering unmatched service and insight. This
-                                    dedication sets us apart from competitors, with lasting connections and
-                                    a reputation built on results.
+                                    From initial consultation to final handover, we manage every detail with precision.
+                                    Our streamlined process, market insight, and commitment to excellence create a
+                                    seamless experience that consistently delivers results.
                                 </p>
                             </div>
                         </div>
