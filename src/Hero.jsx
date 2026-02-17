@@ -98,17 +98,14 @@ export default function Hero() {
 
             <div className="hero-inner">
                 <div className="hero-eyebrow">
-                    EXPERT REAL ESTATE ADVICE TO GROW YOUR WEALTH
-                </div>
+                    Strategic Real Estate Guidance for Lasting Wealth                </div>
 
                 <h1 className="hero-title">
-                    <span>Find Your Perfect Property</span>
-                    <span className="hero-title-break">Worldwide</span>
+                    <span>Discover Exceptional Properties Across Global Markets</span>
                 </h1>
 
                 <p className="hero-subtitle">
-                    Find your perfect property with your trusted advisor.
-                </p>
+                    Secure your next property with a trusted real estate partner.          </p>
 
                 <div className="hero-search" ref={rootRef}>
                     {/* Listing Type */}

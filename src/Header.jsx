@@ -6,6 +6,11 @@ import "./header.css";
 
 const CURRENCIES = ["USD", "AED", "EUR", "GBP", "SAR", "QAR", "KWD", "BHD", "OMR", "JOD", "LBP"];
 
+// ✅ WhatsApp (ONLY ADDED)
+const WHATSAPP_URL =
+    "https://wa.me/9613070383?text=" +
+    encodeURIComponent("Hello, I’m interested in your real estate services.");
+
 export default function Header() {
     const [mobileOpen, setMobileOpen] = useState(false);
     const [openAcc, setOpenAcc] = useState(null); // "listings" | "regions" | "company" | null
@@ -228,7 +233,12 @@ export default function Header() {
                         </div>
                     </div>
 
-                    <button className="pill cta" type="button">
+                    {/* ✅ ONLY CHANGE: add onClick */}
+                    <button
+                        className="pill cta"
+                        type="button"
+                        onClick={() => window.open(WHATSAPP_URL, "_blank")}
+                    >
                         Get in Touch
                         <span className="wa">
                             <WhatsAppIcon />
@@ -236,7 +246,12 @@ export default function Header() {
                     </button>
 
                     {/* MOBILE: whatsapp square */}
-                    <button className="m-wa" type="button" aria-label="WhatsApp">
+                    <button
+                        className="m-wa"
+                        type="button"
+                        aria-label="WhatsApp"
+                        onClick={() => window.open(WHATSAPP_URL, "_blank")}
+                    >
                         <WhatsAppIcon />
                     </button>
                 </div>
@@ -362,7 +377,9 @@ export default function Header() {
                     <a className="m-soc" href="#" aria-label="LinkedIn">
                         <InIcon />
                     </a>
-                    <a className="m-soc" href="#" aria-label="WhatsApp">
+
+                    {/* ✅ ONLY CHANGE: real WhatsApp link */}
+                    <a className="m-soc" href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer" aria-label="WhatsApp">
                         <WhatsAppIcon />
                     </a>
                 </div>
