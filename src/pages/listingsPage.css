@@ -233,7 +233,35 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
+  max-width: calc(100% - 28px);
+  /* stay inside image */
 }
+
+/* keep the same pill style, but allow wrapping */
+.ll-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* ✅ centers text inside pill */
+  padding: 4.2px 7.8px;
+  border-radius: 3.96px;
+
+  font-size: 12px;
+  font-weight: 500;
+
+  /* ✅ allow 2 lines when needed */
+  line-height: 1.2;
+  white-space: normal;
+  /* was nowrap */
+  word-break: break-word;
+  overflow-wrap: anywhere;
+
+  /* ✅ prevent full-width bars */
+  width: fit-content;
+  max-width: 220px;
+  /* tweak: 180-260 depending on your taste */
+}
+
 
 .ll-tag {
   display: inline-flex;

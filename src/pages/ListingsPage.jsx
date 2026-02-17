@@ -78,7 +78,7 @@ export default function ListingsPage() {
   const countryLabel = country ? COUNTRY_LABELS[country] || country : "";
 
   // ✅ decide which listings to show based on route
-  // /rent => FOR_RENT, /sale => FOR_SALE, otherwise all (or you can force)
+  // /rent => FOR_RENT, /sale => FOR_SALE, otherwise all
   const listingType = useMemo(() => {
     if (loc.pathname === "/rent") return "FOR_RENT";
     if (loc.pathname === "/sale") return "FOR_SALE";
@@ -95,7 +95,7 @@ export default function ListingsPage() {
     return base;
   }, [listingType]);
 
-  // ✅ Filters (same UX as OffPlanPage)
+  // ✅ Filters
   const [locationFilter, setLocationFilter] = useState("Any location");
   const [typeFilter, setTypeFilter] = useState("Type");
   const [priceFilter, setPriceFilter] = useState("Price Range");
@@ -105,7 +105,7 @@ export default function ListingsPage() {
   const [developer, setDeveloper] = useState("Any developer");
 
   // ✅ DATA
-  const [rawItems, setRawItems] = useState([]); // keep backend shape for filtering
+  const [rawItems, setRawItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
 
@@ -125,7 +125,7 @@ export default function ListingsPage() {
     };
   }, [filtersOpen]);
 
-  // ✅ Fetch listings (rent/sale) from public endpoint
+  // ✅ Fetch listings from public endpoint
   useEffect(() => {
     let alive = true;
 
@@ -138,6 +138,10 @@ export default function ListingsPage() {
         url.searchParams.set("limit", "100");
         if (country) url.searchParams.set("country", country);
         if (listingType) url.searchParams.set("listingType", listingType);
+
+        // Optional: if you pass listingType in query param from hero/navbar, support it too
+        const qpListingType = (q.get("listingType") || "").trim();
+        if (qpListingType) url.searchParams.set("listingType", qpListingType);
 
         const res = await fetch(url.toString());
         const data = await res.json().catch(() => ({}));
@@ -158,9 +162,10 @@ export default function ListingsPage() {
     return () => {
       alive = false;
     };
-  }, [country, listingType]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [country, listingType, loc.search]);
 
-  // Build dropdown options dynamically from data (so filters actually match your DB)
+  // Build dropdown options dynamically from data
   const locationOptions = useMemo(() => {
     const set = new Set();
     rawItems.forEach((p) => {
@@ -188,28 +193,36 @@ export default function ListingsPage() {
     return ["Any developer", ...Array.from(set).sort((a, b) => a.localeCompare(b))];
   }, [rawItems]);
 
-  // ✅ Filter + sort raw items
+  // ✅ Filter + sort
   const filteredRaw = useMemo(() => {
     let list = [...rawItems];
 
     // location
     if (locationFilter !== "Any location") {
       list = list.filter(
-        (p) => String(p?.location || "").trim().toLowerCase() === locationFilter.toLowerCase()
+        (p) =>
+          String(p?.location || "")
+            .trim()
+            .toLowerCase() === locationFilter.toLowerCase()
       );
     }
 
     // type
     if (typeFilter !== "Type") {
       list = list.filter(
-        (p) => String(p?.propertyType || "").trim().toLowerCase() === typeFilter.toLowerCase()
+        (p) =>
+          String(p?.propertyType || "")
+            .trim()
+            .toLowerCase() === typeFilter.toLowerCase()
       );
     }
 
     // developer
     if (developer !== "Any developer") {
       list = list.filter((p) => {
-        const d = String(p?.developer || p?.developerName || "").trim().toLowerCase();
+        const d = String(p?.developer || p?.developerName || "")
+          .trim()
+          .toLowerCase();
         return d === developer.toLowerCase();
       });
     }
@@ -225,28 +238,32 @@ export default function ListingsPage() {
         return true;
       };
 
-      list = list.filter((p) => inRange(xNumSafe(p?.priceFrom ?? p?.startingPrice)));
+      list = list.filter((p) =>
+        inRange(xNumSafe(p?.priceFrom ?? p?.startingPrice))
+      );
     }
 
     // sort
     if (sort === "Price: Low to High") {
       list.sort(
         (a, b) =>
-          xNumSafe(a?.priceFrom ?? a?.startingPrice) - xNumSafe(b?.priceFrom ?? b?.startingPrice)
+          xNumSafe(a?.priceFrom ?? a?.startingPrice) -
+          xNumSafe(b?.priceFrom ?? b?.startingPrice)
       );
     } else if (sort === "Price: High to Low") {
       list.sort(
         (a, b) =>
-          xNumSafe(b?.priceFrom ?? b?.startingPrice) - xNumSafe(a?.priceFrom ?? a?.startingPrice)
+          xNumSafe(b?.priceFrom ?? b?.startingPrice) -
+          xNumSafe(a?.priceFrom ?? a?.startingPrice)
       );
     }
 
     return list;
   }, [rawItems, locationFilter, typeFilter, developer, priceFilter, sort]);
 
-  // ✅ Map to ll-card UI shape (after filters so dots look stable per page)
+  // ✅ Map to card shape (NO carousel dots)
   const items = useMemo(() => {
-    return filteredRaw.map((p, idx) => ({
+    return filteredRaw.map((p) => ({
       id: p.id,
       brand: p.developer || p.developerName || "Listing",
       type: typeLabel(p),
@@ -258,13 +275,11 @@ export default function ListingsPage() {
       parking: p.parking ?? "-",
       area: areaLabel(p),
       img: p.mainImageUrl || "",
-      dots: idx % 3,
     }));
   }, [filteredRaw]);
 
-  // reset filters page-like behavior
+  // reset filters when switching base route/country
   useEffect(() => {
-    // when switching route rent/sale/country, reset filters
     setLocationFilter("Any location");
     setTypeFilter("Type");
     setPriceFilter("Price Range");
@@ -288,11 +303,12 @@ export default function ListingsPage() {
         {/* title */}
         <div className="lp2-top">
           <h1 className="lp2-title">
-            {pageTitle} {countryLabel ? <span className="lp2-sub">— {countryLabel}</span> : null}
+            {pageTitle}{" "}
+            {countryLabel ? <span className="lp2-sub">— {countryLabel}</span> : null}
           </h1>
         </div>
 
-        {/* ✅ filters row (same UX as OffPlanPage) */}
+        {/* filters row */}
         <div className="lp2-filters">
           <SelectPill
             icon={<FaMapMarkerAlt />}
@@ -329,7 +345,11 @@ export default function ListingsPage() {
           <div className="lp2-actions">
             <div className="lp2-sortPill">
               <span className="lp2-sortIcon">⇅</span>
-              <select className="lp2-sortSel" value={sort} onChange={(e) => setSort(e.target.value)}>
+              <select
+                className="lp2-sortSel"
+                value={sort}
+                onChange={(e) => setSort(e.target.value)}
+              >
                 <option>Recommended</option>
                 <option>Price: Low to High</option>
                 <option>Price: High to Low</option>
@@ -370,21 +390,11 @@ export default function ListingsPage() {
                     <div className="ll-img" style={{ background: "#eee" }} />
                   )}
 
-                  <div className="ll-watermark" aria-hidden="true">
-                    <span className="ll-wm-ring" />
-                    <span className="ll-wm-ring" />
-                  </div>
-
+                  {/* ✅ NO watermark circles, NO carousel dots */}
                   <div className="ll-tags">
                     <span className="ll-tag ll-tag--black">{x.brand}</span>
                     <span className="ll-tag ll-tag--light">{x.type}</span>
                     <span className="ll-tag ll-tag--gray">{x.status}</span>
-                  </div>
-
-                  <div className="ll-img-dots" aria-hidden="true">
-                    {Array.from({ length: 3 }).map((_, i) => (
-                      <span key={i} className={"ll-img-dot" + (i === x.dots ? " is-active" : "")} />
-                    ))}
                   </div>
                 </div>
 
@@ -424,12 +434,20 @@ export default function ListingsPage() {
       </div>
 
       {/* DRAWER */}
-      <div className={"lp2-dim" + (filtersOpen ? " is-open" : "")} onClick={() => setFiltersOpen(false)} />
+      <div
+        className={"lp2-dim" + (filtersOpen ? " is-open" : "")}
+        onClick={() => setFiltersOpen(false)}
+      />
 
       <aside className={"lp2-drawer" + (filtersOpen ? " is-open" : "")} aria-hidden={!filtersOpen}>
         <div className="lp2-drawerTop">
           <h3 className="lp2-drawerTitle">All filters</h3>
-          <button className="lp2-x" type="button" aria-label="Close" onClick={() => setFiltersOpen(false)}>
+          <button
+            className="lp2-x"
+            type="button"
+            aria-label="Close"
+            onClick={() => setFiltersOpen(false)}
+          >
             <FaTimes />
           </button>
         </div>

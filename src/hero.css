@@ -147,7 +147,6 @@
 .hero-menu {
     position: absolute;
     bottom: calc(100% + 10px);
-    /* ⬅ UP */
     left: 0;
     z-index: 50;
 
@@ -233,11 +232,9 @@
         width: 100%;
     }
 
-    /* ✅ MOBILE DROPDOWN OPENS UP */
     .hero-menu {
         position: absolute;
         bottom: calc(100% + 10px);
-        /* ⬅ OPEN UP */
         top: auto;
         left: 0;
         right: 0;
@@ -262,41 +259,31 @@
 @media (max-width: 900px) {
     .hero-title {
         font-size: 40px;
-        /* ⬅ key: smaller but still bold */
         line-height: 1.15;
-        /* tighter like reference */
         max-width: 320px;
-        /* forces 2-line wrap */
         margin-left: auto;
         margin-right: auto;
         text-align: center;
     }
 }
 
-/* ===== Make title exactly 2 lines on mobile ===== */
-
-/* default (desktop): behave like your old <br/> */
+/* default desktop: line break */
 .hero-title-break {
     display: block;
-    /* forces WorldWide on new line */
 }
 
 @media (max-width: 900px) {
     .hero-title {
-        /* responsive size: never too huge, never too small */
         font-size: clamp(30px, 7.2vw, 40px);
         line-height: 1.12;
         letter-spacing: -0.01em;
         max-width: 360px;
-        /* keeps 2 lines clean */
         margin-left: auto;
         margin-right: auto;
     }
 
-    /* on mobile we keep it two lines by preventing extra breaks */
     .hero-title-break {
         display: block;
-        /* still line 2 */
     }
 }
 
@@ -320,6 +307,4 @@
     .hero-inner {
         padding-top: 86px;
     }
-
-    /* instead of 120px */
 }
