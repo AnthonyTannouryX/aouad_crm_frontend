@@ -22,28 +22,43 @@ export default function ContactPage() {
                             <div className="contact-kv__row">
                                 <div className="contact-kv__label">Address:</div>
                                 <div className="contact-kv__value">
-                                    Floor 11, Tower 44, Dekwaneh, Beirut
+                                    <a
+                                        className="contact-kv__link"
+                                        href="https://maps.app.goo.gl/nE2pywZMB6reQ6Zi7"
+                                        target="_blank"
+                                        rel="noreferrer"
+                                    >
+                                        Floor 11, Tower 44, Dekwaneh, Beirut
+                                    </a>
                                 </div>
                             </div>
 
                             <div className="contact-kv__row">
                                 <div className="contact-kv__label">Phone:</div>
-                                <a className="contact-kv__link" href="tel:+971548880550">
-                                    +961 03 020339
+                                <a className="contact-kv__link" href="tel:+9613070383">
+                                    +961 3 07 03 83
                                 </a>
                             </div>
 
                             <div className="contact-kv__row">
                                 <div className="contact-kv__label">WhatsApp:</div>
-                                <a className="contact-kv__link" href="https://wa.me/971548880550" target="_blank" rel="noreferrer">
-                                    +971 54 888 0550
+                                <a
+                                    className="contact-kv__link"
+                                    href={
+                                        "https://wa.me/9613070383?text=" +
+                                        encodeURIComponent("Hello, I’m interested in your real estate services.")
+                                    }
+                                    target="_blank"
+                                    rel="noreferrer"
+                                >
+                                    +961 3 07 03 83
                                 </a>
                             </div>
 
                             <div className="contact-kv__row">
                                 <div className="contact-kv__label">Email:</div>
-                                <a className="contact-kv__link" href="mailto:info@aouadrealestate.com">
-                                    info@aouadrealestate.com
+                                <a className="contact-kv__link" href="mailto:info@aouad.co">
+                                    info@aouad.co
                                 </a>
                             </div>
                         </div>
@@ -66,7 +81,16 @@ export default function ContactPage() {
                             <a className="contact-social__btn" href="#" aria-label="LinkedIn">
                                 <FaLinkedinIn />
                             </a>
-                            <a className="contact-social__btn" href="#" aria-label="WhatsApp">
+                            <a
+                                className="contact-social__btn"
+                                href={
+                                    "https://wa.me/9613070383?text=" +
+                                    encodeURIComponent("Hello, I’m interested in your real estate services.")
+                                }
+                                target="_blank"
+                                rel="noreferrer"
+                                aria-label="WhatsApp"
+                            >
                                 <FaWhatsapp />
                             </a>
                         </div>
@@ -112,7 +136,7 @@ export default function ContactPage() {
                                     <div className="contact-phone">
                                         <div className="contact-phone__prefix">
                                             <span className="contact-flag" aria-hidden="true" />
-                                            <span>+971</span>
+                                            <span>+961</span>
                                             <span className="contact-phone__caret">▾</span>
                                         </div>
                                         <input className="contact-input contact-phone__input" required />
@@ -124,9 +148,9 @@ export default function ContactPage() {
                                 </button>
 
                                 <div className="contact-mini">
-                                    <span><FaEnvelope /> info@aouadrealestate.com</span>
-                                    <span><FaPhoneAlt /> +971 54 888 0550</span>
-                                    <span><FaMapMarkerAlt /> Business Bay, Dubai</span>
+                                    <span><FaEnvelope /> info@aouad.co</span>
+                                    <span><FaPhoneAlt /> +961 3 07 03 83</span>
+                                    <span><FaMapMarkerAlt /> Dekwaneh, Beirut</span>
                                 </div>
                             </form>
                         </div>
@@ -142,7 +166,7 @@ export default function ContactPage() {
                             title="Aouad Office Location"
                             loading="lazy"
                             referrerPolicy="no-referrer-when-downgrade"
-                            src="https://www.google.com/maps?q=Bay%20Gate%20Tower%20Business%20Bay%20Dubai&output=embed"
+                            src="https://www.google.com/maps?q=Tower%2044%20Dekwaneh%20Beirut&output=embed"
                         />
                     </div>
                 </section>

@@ -2,24 +2,24 @@ import "./careersPageSections.css";
 
 const FAQ = [
     {
-        q: "Do I need experience to become an Real Estate Agent?",
-        a: "While experience in sales or real estate is beneficial, it’s not mandatory. What matters most is your ability to learn, adapt, and connect with clients. If you are willing, we can teach you.",
+        q: "Do I need experience to join AOUAD?",
+        a: "Experience in sales or real estate is an advantage, but it is not mandatory. What matters most is mindset, discipline, and the willingness to learn. We provide the structure, guidance, and systems — you bring the ambition.",
     },
     {
-        q: "How do I get clients?",
-        a: "Successful agents use a mix of networking, social media, prospecting, and referrals to build a strong client base. Our in house marketing and technology teams also provide valuable support.",
+        q: "How do I build a client base?",
+        a: "Top-performing advisors combine networking, personal branding, referrals, and consistent prospecting. At AOUAD, we support you with strategic marketing, digital exposure, and advanced tools to accelerate your growth.",
     },
     {
-        q: "Is this a full-time or part-time role?",
-        a: "This is a full-time role, and your success depends on your ability to dedicate time and effort to your career.",
+        q: "Is this a full-time commitment?",
+        a: "Yes. Real estate at AOUAD is treated as a serious career, not a side activity. Success requires focus, consistency, and a professional, long-term approach.",
     },
     {
-        q: "What kind of properties will I be selling?",
-        a: "You will specialize in luxury residential and investment properties in Dubai’s most sought-after communities.",
+        q: "What type of properties will I handle?",
+        a: "You will represent high-quality residential and investment properties across Beirut and key Lebanese markets, with a focus on strategic positioning and long-term value.",
     },
     {
-        q: "How quickly can I start making money?",
-        a: "Commissions are earned upon closing deals, so the timeline depends on your effort, network, and ability to close transactions. Most agents close their first deal within the first 3–6 months.",
+        q: "When can I start generating income?",
+        a: "Commissions are earned upon closing transactions. Timelines vary based on effort, consistency, and market activity. Motivated agents who stay disciplined can begin closing deals within their first few months.",
     },
 ];
 

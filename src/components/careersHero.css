@@ -63,3 +63,32 @@
         font-size: 15px;
     }
 }
+
+.careers-hero {
+    position: relative;
+    height: 85vh;
+    /* was 72vh */
+    min-height: 680px;
+    /* was 520px */
+    background-size: cover;
+    background-position: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+@media (max-width: 768px) {
+    .careers-hero {
+        height: 75vh;
+        /* was 65vh */
+        min-height: 560px;
+    }
+
+    .careers-content h1 {
+        font-size: 36px;
+    }
+
+    .careers-content p {
+        font-size: 15px;
+    }
+}
