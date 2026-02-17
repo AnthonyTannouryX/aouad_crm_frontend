@@ -1,7 +1,8 @@
+// src/components/MakeYourMoveSection.jsx
 import "./makeYourMoveSection.css";
 import { FaCheckCircle } from "react-icons/fa";
 
-// ✅ FIX: this file exists in your folder
+// team image
 import teamPic from "../assets/ourteam/PHOTO-2026-02-07-13-25-44.jpg";
 
 export default function MakeYourMoveSection() {
@@ -10,53 +11,67 @@ export default function MakeYourMoveSection() {
             <div className="mym-inner">
                 {/* LEFT */}
                 <div className="mym-left">
-                    <h2 className="mym-title">MAKE YOUR MOVE</h2>
+                    <h2 className="mym-title">BUILD THE FUTURE</h2>
+
+                    <p className="mym-intro">
+                        At <strong>AOUAD</strong>, we are not building an agency.
+                        <br />
+                        We are building a <strong>platform</strong> for ambitious professionals
+                        who want more — more growth, more impact, and more control over their future.
+                    </p>
 
                     <ul className="mym-list">
                         <li className="mym-item">
                             <FaCheckCircle className="mym-ic" />
                             <p>
-                                At Aouad Lifestyle Properties, we’re more than just a team, we’re a
-                                community.
+                                We believe in <strong>discipline, vision, and intelligent execution</strong>.
+                                Our environment is designed to elevate talent through advanced training,
+                                strategic mentorship, and a culture that rewards excellence.
                             </p>
                         </li>
 
                         <li className="mym-item">
                             <FaCheckCircle className="mym-ic" />
                             <p>
-                                We believe in working hard, celebrating successes, and growing together.
-                                With a dynamic and supportive work environment, we invest in our people
-                                through training, mentorship, and shared achievements. We ensure that you
-                                have the very best industry tools available, and trusted guidance at your
-                                disposal.
+                                Driven by a <strong>technology-first mindset</strong>, AOUAD integrates
+                                cutting-edge digital marketing, data-driven tools, and innovative systems
+                                that give our agents a real competitive advantage.
                             </p>
                         </li>
 
                         <li className="mym-item">
                             <FaCheckCircle className="mym-ic" />
                             <p>
-                                Our founder comes from a technology background, bringing cutting-edge
-                                digital marketing and innovative tools to give our agents a competitive
-                                edge. We invest in the best resources to ensure your success, after all,
-                                your success is key.
+                                We invest in <strong>people before anything else</strong> — because when
+                                our agents evolve, the brand evolves. Growth here is structured,
+                                intentional, and measurable.
                             </p>
                         </li>
 
                         <li className="mym-item">
                             <FaCheckCircle className="mym-ic" />
                             <p>
-                                If you&apos;re ready to take your career and earnings to the next level,
-                                then Aouad Lifestyle Properties is the place to be. Are you ready to make
-                                your move?
+                                If you’re ready to think bigger, move faster, and build something meaningful,
+                                <strong> AOUAD is where your next chapter begins.</strong>
                             </p>
                         </li>
                     </ul>
+
+                    <p className="mym-outro">
+                        The future isn’t waited for. <strong>It’s built.</strong>
+                        <br />
+                        Are you ready to build yours?
+                    </p>
                 </div>
 
                 {/* RIGHT */}
                 <div className="mym-right">
                     <div className="mym-imgWrap">
-                        <img src={teamPic} alt="Team" className="mym-img" />
+                        <img
+                            src={teamPic}
+                            alt="AOUAD Team"
+                            className="mym-img"
+                        />
                     </div>
                 </div>
             </div>

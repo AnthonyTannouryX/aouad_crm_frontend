@@ -5,6 +5,11 @@ export const setToken = (t) => localStorage.setItem(KEY, t);
 export const getToken = () => localStorage.getItem(KEY);
 export const clearToken = () => localStorage.removeItem(KEY);
 
+// ✅ ADD THIS (AgentApp / Admin can import it)
+export const logout = () => {
+  clearToken();
+};
+
 export function decodeJwt(token) {
   try {
     const base64Url = token.split(".")[1];

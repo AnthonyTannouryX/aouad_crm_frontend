@@ -26,7 +26,7 @@ import WhyAouadPage from "./pages/WhyAouadPage.jsx";
 import OffPlanPage from "./pages/OffPlanPage.jsx";
 import ForRentPage from "./pages/ForRentPage.jsx";
 import ForSalePage from "./pages/ForSalePage.jsx";
-import ListingsPage from "./pages/ListingsPage.jsx"; // ✅ ADD THIS
+import ListingsPage from "./pages/ListingsPage.jsx";
 import CareersPage from "./pages/CareersPage.jsx";
 import OurTeamPage from "./pages/OurTeamPage.jsx";
 import MortgageCalculatorPage from "./pages/MortgageCalculatorPage.jsx";
@@ -37,8 +37,13 @@ import TeamMemberPage from "./pages/TeamMemberPage.jsx";
 import LoginPage from "./pages/LoginPage.jsx";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 
-/* ===== AGENT ===== */
+/* ===== AGENT APP + PAGES ===== */
 import AgentApp from "./agent/AgentApp.jsx";
+import AgentDashboardPage from "./agent/pages/AgentDashboardPage.jsx";
+import AgentLeadsPage from "./agent/pages/AgentLeadsPage.jsx";
+import AgentListingsPage from "./agent/pages/AgentListingsPage.jsx";
+import AgentSchedulePage from "./agent/pages/AgentSchedulePage.jsx";
+import AgentSettingsPage from "./agent/pages/AgentSettingsPage.jsx";
 
 /* ===== HOME PAGE ===== */
 function HomePage() {
@@ -68,12 +73,8 @@ function PublicApp() {
 
         {/* LISTINGS */}
         <Route path="/off-plan" element={<OffPlanPage />} />
-
-        {/* ✅ Option A (KEEP your existing pages) */}
         <Route path="/rent" element={<ForRentPage />} />
         <Route path="/sale" element={<ForSalePage />} />
-
-        {/* ✅ Country page from PopularCountries */}
         <Route path="/listings" element={<ListingsPage />} />
 
         {/* Listing details */}
@@ -131,7 +132,14 @@ export default function App() {
             <AgentApp />
           </ProtectedRoute>
         }
-      />
+      >
+        {/* ✅ Agent nested pages */}
+        <Route index element={<AgentDashboardPage />} />
+        <Route path="leads" element={<AgentLeadsPage />} />
+        <Route path="listings" element={<AgentListingsPage />} />
+        <Route path="schedule" element={<AgentSchedulePage />} />
+        <Route path="settings" element={<AgentSettingsPage />} />
+      </Route>
 
       {/* EVERYTHING ELSE is your current website */}
       <Route path="/*" element={<PublicApp />} />

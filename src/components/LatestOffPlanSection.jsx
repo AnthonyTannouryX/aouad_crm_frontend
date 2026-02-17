@@ -16,14 +16,6 @@ import {
 const API_BASE = import.meta.env.VITE_API_BASE || "/api";
 const PAGE_LIMIT = 12;
 
-/**
- * IMPORTANT:
- * - Your backend already works with: listingType=FOR_SALE / FOR_RENT.
- * - OFF-PLAN might NOT be listingType in your DB.
- * So this component is built to try a few common query shapes.
- *
- * You can lock it to the correct one once you confirm which param your backend uses.
- */
 export default function LatestOffPlanSection() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -49,14 +41,9 @@ export default function LatestOffPlanSection() {
       try {
         setLoading(true);
 
-        // We try a few query variants because "OFF_PLAN" might not be a listingType enum in your backend.
-        // The first one that returns items wins.
         const candidates = [
-          // (Your original)
           `${API_BASE}/public/listings?listingType=OFF_PLAN&featured=true&limit=${PAGE_LIMIT}`,
-          // Common alternate: "OFFPLAN" (no underscore)
           `${API_BASE}/public/listings?listingType=OFFPLAN&featured=true&limit=${PAGE_LIMIT}`,
-          // Common alternate param names (if your backend uses project/category flags)
           `${API_BASE}/public/listings?category=OFF_PLAN&featured=true&limit=${PAGE_LIMIT}`,
           `${API_BASE}/public/listings?projectType=OFF_PLAN&featured=true&limit=${PAGE_LIMIT}`,
           `${API_BASE}/public/listings?isOffPlan=true&featured=true&limit=${PAGE_LIMIT}`,
@@ -79,12 +66,7 @@ export default function LatestOffPlanSection() {
         }
 
         if (!alive) return;
-
         setItems(list);
-
-        // Debug if needed:
-        // console.log("Off-plan loaded count:", list.length);
-        // if (!list.length && lastErr) console.warn("Off-plan last error:", lastErr);
         void lastErr;
       } catch (e) {
         console.error(e);
@@ -131,43 +113,12 @@ function CardsSkeleton() {
         <div key={i} className="lop-card" style={{ pointerEvents: "none" }}>
           <div className="lop-media" style={{ background: "#eee" }} />
           <div className="lop-body">
-            <div
-              style={{
-                height: 18,
-                width: "70%",
-                background: "#eee",
-                borderRadius: 6,
-              }}
-            />
-            <div
-              style={{
-                height: 12,
-                width: "50%",
-                background: "#f0f0f0",
-                borderRadius: 6,
-                marginTop: 10,
-              }}
-            />
-            <div
-              style={{
-                height: 12,
-                width: "60%",
-                background: "#f0f0f0",
-                borderRadius: 6,
-                marginTop: 8,
-              }}
-            />
+            <div style={{ height: 18, width: "70%", background: "#eee", borderRadius: 6 }} />
+            <div style={{ height: 12, width: "50%", background: "#f0f0f0", borderRadius: 6, marginTop: 10 }} />
+            <div style={{ height: 12, width: "60%", background: "#f0f0f0", borderRadius: 6, marginTop: 8 }} />
             <div className="lop-line" />
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-              }}
-            >
-              <div
-                style={{ height: 14, width: 120, background: "#eee", borderRadius: 6 }}
-              />
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div style={{ height: 14, width: 120, background: "#eee", borderRadius: 6 }} />
               <div style={{ display: "flex", gap: 8 }}>
                 <div style={{ width: 38, height: 38, background: "#eee", borderRadius: 10 }} />
                 <div style={{ width: 38, height: 38, background: "#eee", borderRadius: 10 }} />
@@ -215,7 +166,7 @@ function CardsCarousel({ items }) {
     if (!card) return;
 
     const cardW = card.getBoundingClientRect().width;
-    const gap = 26; // must match CSS gap
+    const gap = 26;
     const step = cardW + gap;
 
     const nextIndex = Math.round(el.scrollLeft / step);
@@ -253,9 +204,7 @@ function CardsCarousel({ items }) {
                     Featured <FaStar className="lop-star" />
                   </div>
                 )}
-                {p.handover && (
-                  <div className="lop-badge lop-badge--dark">{p.handover}</div>
-                )}
+                {p.handover && <div className="lop-badge lop-badge--dark">{p.handover}</div>}
                 {(p.developer || p.developerName) && (
                   <div className="lop-badge lop-badge--black">
                     {p.developer || p.developerName}
@@ -271,9 +220,7 @@ function CardsCarousel({ items }) {
                 <div className="lop-meta-row">
                   <FaMapMarkerAlt className="lop-mini" />
                   <span>
-                    {p.location ||
-                      [p.country, p.city, p.area].filter(Boolean).join(", ") ||
-                      "-"}
+                    {p.location || [p.country, p.city, p.area].filter(Boolean).join(", ") || "-"}
                   </span>
                 </div>
 
@@ -289,17 +236,31 @@ function CardsCarousel({ items }) {
                 <span className="lop-from">{formatFromPrice(p)}</span>
 
                 <div className="lop-actions">
-                  {/* Calendar */}
+                  {/* ✅ Calendar -> goes to Schedule Call for ONLY assigned agent */}
                   <button
                     className="lop-ico-btn"
-                    aria-label="Schedule a viewing"
+                    aria-label="Schedule a call"
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
 
-                      // TODO: wire your calendar flow (modal / booking page / calendly)
-                      // Example:
-                      // window.location.href = `/book?listingId=${p.id}`;
+                      const agentId =
+                        p?.assignedAgent?.id ||
+                        p?.assignedAgentId ||
+                        p?.agent?.id ||
+                        p?.agentId ||
+                        "";
+
+                      const listingId = p?.id || "";
+
+                      if (!agentId) {
+                        window.location.href = "/schedule-call";
+                        return;
+                      }
+
+                      window.location.href = `/schedule-call?agentId=${encodeURIComponent(
+                        agentId
+                      )}&listingId=${encodeURIComponent(listingId)}`;
                     }}
                   >
                     <FaCalendarAlt className="lop-action-ico" />
@@ -320,12 +281,7 @@ function CardsCarousel({ items }) {
                         `Hi, I'm interested in this property. Could you please share more details?`
                       );
 
-
-                      window.open(
-                        `https://wa.me/${phone}?text=${msg}`,
-                        "_blank",
-                        "noopener,noreferrer"
-                      );
+                      window.open(`https://wa.me/${phone}?text=${msg}`, "_blank", "noopener,noreferrer");
                     }}
                   >
                     <FaWhatsapp className="lop-action-ico" />
@@ -340,10 +296,7 @@ function CardsCarousel({ items }) {
       {maxIndex > 0 && (
         <div className="lop-section-dots" aria-hidden="true">
           {Array.from({ length: maxIndex + 1 }).map((_, i) => (
-            <span
-              key={i}
-              className={"lop-section-dot" + (i === index ? " is-active" : "")}
-            />
+            <span key={i} className={"lop-section-dot" + (i === index ? " is-active" : "")} />
           ))}
         </div>
       )}
@@ -360,7 +313,6 @@ function formatFromPrice(p) {
 }
 
 function pickAgentPhone(p) {
-  // Try the most likely shapes first
   const raw =
     p?.assignedAgent?.phone ||
     p?.assignedAgent?.whatsapp ||
@@ -371,10 +323,8 @@ function pickAgentPhone(p) {
     p?.phone ||
     "";
 
-  // Keep digits and optional leading +
   const cleaned = String(raw).trim().replace(/[^\d+]/g, "");
   if (!cleaned) return "";
 
-  // wa.me prefers no '+'
   return cleaned.startsWith("+") ? cleaned.slice(1) : cleaned;
 }

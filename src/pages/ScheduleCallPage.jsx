@@ -1,10 +1,16 @@
 // src/pages/ScheduleCallPage.jsx
 import { useEffect, useMemo, useState } from "react";
+import { useLocation } from "react-router-dom";
 import "./scheduleCallPage.css";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "/api";
 
 export default function ScheduleCallPage() {
+    const location = useLocation();
+    const qs = useMemo(() => new URLSearchParams(location.search), [location.search]);
+    const lockedAgentId = qs.get("agentId") || "";
+    const listingId = qs.get("listingId") || "";
+
     const [agents, setAgents] = useState([]);
     const [agentsLoading, setAgentsLoading] = useState(true);
 
@@ -32,57 +38,64 @@ export default function ScheduleCallPage() {
     // ------- load agents -------
     useEffect(() => {
         let alive = true;
+
         async function load() {
             try {
                 setAgentsLoading(true);
-                const res = await fetch(`${API_BASE}/public/agents`);
-                if (res.ok) {
-                    const data = await res.json();
-                    const list = Array.isArray(data) ? data : data?.items || data?.agents || [];
-                    const normalized = list.map((a) => ({
-                        id: String(a.id),
-                        name: a.name || a.fullName || "Agent",
-                        title: a.title || a.roleTitle || "Property Advisor",
-                        durationMin: a.durationMin || 30,
-                        channel: a.channel || "Call / WhatsApp",
-                        // IMPORTANT: use ONE image for selected agent
-                        avatarUrl: a.avatarUrl || a.imageUrl || a.photoUrl || "",
-                        phone: a.phone || a.whatsapp || "",
-                    }));
-                    if (!alive) return;
-                    setAgents(normalized);
-                    if (!agentId && normalized.length) setAgentId(normalized[0].id);
-                    return;
-                }
 
-                // fallback mock
-                const mock = [
-                    { id: "1", name: "Abdullah Deryan", title: "Property Consultant", durationMin: 30, channel: "Call / WhatsApp", avatarUrl: "", phone: "+971548880550" },
-                    { id: "2", name: "Andrew Aouad", title: "Chief Executive Officer", durationMin: 30, channel: "Call / WhatsApp", avatarUrl: "", phone: "+96170123456" },
-                    { id: "3", name: "Ghadi Beyrouthy", title: "Property Consultant", durationMin: 30, channel: "Call / WhatsApp", avatarUrl: "", phone: "+96176111222" },
-                    { id: "4", name: "Joya Abou Rjeily", title: "Property Consultant", durationMin: 30, channel: "Call / WhatsApp", avatarUrl: "", phone: "+96170111111" },
-                ];
+                const res = await fetch(`${API_BASE}/public/agents`);
+                const data = res.ok ? await res.json() : null;
+                const list = Array.isArray(data) ? data : data?.items || data?.agents || [];
+
+                const normalized = list.map((a) => ({
+                    id: String(a.id),
+                    name: a.name || a.fullName || "Agent",
+                    title: a.title || a.roleTitle || "Property Advisor",
+                    durationMin: a.durationMin || 30,
+                    channel: a.channel || "Call / WhatsApp",
+                    avatarUrl: a.avatarUrl || a.imageUrl || a.photoUrl || "",
+                    phone: a.phone || a.whatsapp || "",
+                }));
+
+                const finalList = lockedAgentId
+                    ? normalized.filter((a) => a.id === lockedAgentId)
+                    : normalized;
+
                 if (!alive) return;
-                setAgents(mock);
-                if (!agentId) setAgentId(mock[0].id);
-            } catch {
-                // ignore
+
+                setAgents(finalList);
+
+                if (lockedAgentId) {
+                    setAgentId(lockedAgentId);
+                } else if (!agentId && finalList.length) {
+                    setAgentId(finalList[0].id);
+                }
+            } catch (e) {
+                console.error(e);
+                if (!alive) return;
+                setAgents([]);
             } finally {
                 if (!alive) return;
                 setAgentsLoading(false);
             }
         }
+
         load();
-        return () => (alive = false);
+        return () => {
+            alive = false;
+        };
+        // important: rerun when URL agent changes
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [lockedAgentId]);
 
     // keep month in sync with selected date
     useEffect(() => {
         const d = parseISO(dateISO);
         if (!d) return;
         const m = startOfMonth(d);
-        if (m.getFullYear() !== viewMonth.getFullYear() || m.getMonth() !== viewMonth.getMonth()) setViewMonth(m);
+        if (m.getFullYear() !== viewMonth.getFullYear() || m.getMonth() !== viewMonth.getMonth()) {
+            setViewMonth(m);
+        }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [dateISO]);
 
@@ -123,7 +136,9 @@ export default function ScheduleCallPage() {
         }
 
         loadSlots();
-        return () => (alive = false);
+        return () => {
+            alive = false;
+        };
     }, [agentId, dateISO]);
 
     const filteredAgents = useMemo(() => {
@@ -141,7 +156,7 @@ export default function ScheduleCallPage() {
         return d.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "2-digit" });
     }, [dateISO]);
 
-    // open details when slot picked (optional)
+    // open details when slot picked
     useEffect(() => {
         if (slot) setDetailsOpen(true);
     }, [slot]);
@@ -163,6 +178,7 @@ export default function ScheduleCallPage() {
                 customerPhone: phone.trim(),
                 note: note.trim() || null,
                 source: "schedule_call_page",
+                listingId: listingId || null, // harmless even if backend ignores it
             };
 
             const res = await fetch(`${API_BASE}/public/appointments`, {
@@ -176,7 +192,6 @@ export default function ScheduleCallPage() {
                 return;
             }
 
-            // dev-friendly
             const msg = await res.text().catch(() => "");
             console.warn("appointments endpoint not ready:", res.status, msg);
             setSuccess(true);
@@ -188,13 +203,17 @@ export default function ScheduleCallPage() {
         }
     }
 
+    const isLocked = !!lockedAgentId;
+
     return (
         <div className="os">
             <div className="os-inner">
                 <header className="os-head">
                     <div>
                         <h1 className="os-title">Schedule a Call</h1>
-                        <p className="os-sub">Pick an agent, choose a date and an available time. We’ll call you to share details and answer questions.</p>
+                        <p className="os-sub">
+                            Pick a date and an available time. We’ll call you to share details and answer questions.
+                        </p>
                     </div>
 
                     <div className="os-tz">
@@ -241,26 +260,42 @@ export default function ScheduleCallPage() {
                             ) : null}
                         </div>
 
-                        <div className="os-left-top">
-                            <div className="os-h">Pick an agent</div>
-                            <input className="os-input" placeholder="Search agent…" value={q} onChange={(e) => setQ(e.target.value)} />
-                        </div>
+                        {/* ✅ If locked, hide all other agents UI */}
+                        {!isLocked && (
+                            <>
+                                <div className="os-left-top">
+                                    <div className="os-h">Pick an agent</div>
+                                    <input
+                                        className="os-input"
+                                        placeholder="Search agent…"
+                                        value={q}
+                                        onChange={(e) => setQ(e.target.value)}
+                                    />
+                                </div>
 
-                        <div className="os-agent-list">
-                            {agentsLoading
-                                ? Array.from({ length: 7 }).map((_, i) => <div key={i} className="os-agent-row skel" />)
-                                : filteredAgents.map((a) => (
-                                    <button
-                                        key={a.id}
-                                        type="button"
-                                        className={"os-agent-row" + (a.id === agentId ? " is-active" : "")}
-                                        onClick={() => setAgentId(a.id)}
-                                    >
-                                        <div className="os-agent-row-name">{a.name}</div>
-                                        <div className="os-agent-row-sub">{a.title}</div>
-                                    </button>
-                                ))}
-                        </div>
+                                <div className="os-agent-list">
+                                    {agentsLoading
+                                        ? Array.from({ length: 7 }).map((_, i) => <div key={i} className="os-agent-row skel" />)
+                                        : filteredAgents.map((a) => (
+                                            <button
+                                                key={a.id}
+                                                type="button"
+                                                className={"os-agent-row" + (a.id === agentId ? " is-active" : "")}
+                                                onClick={() => setAgentId(a.id)}
+                                            >
+                                                <div className="os-agent-row-name">{a.name}</div>
+                                                <div className="os-agent-row-sub">{a.title}</div>
+                                            </button>
+                                        ))}
+                                </div>
+                            </>
+                        )}
+
+                        {isLocked && (
+                            <div style={{ padding: "14px 16px", color: "rgb(100,116,139)", fontSize: 13 }}>
+                                You’re scheduling with this agent only.
+                            </div>
+                        )}
                     </aside>
 
                     {/* MIDDLE */}
@@ -329,7 +364,12 @@ export default function ScheduleCallPage() {
                                 Array.from({ length: 10 }).map((_, i) => <div key={i} className="os-time skel" />)
                             ) : slots.length ? (
                                 slots.map((t) => (
-                                    <button key={t} type="button" className={"os-time" + (t === slot ? " is-active" : "")} onClick={() => setSlot(t)}>
+                                    <button
+                                        key={t}
+                                        type="button"
+                                        className={"os-time" + (t === slot ? " is-active" : "")}
+                                        onClick={() => setSlot(t)}
+                                    >
                                         {t}
                                     </button>
                                 ))
@@ -454,7 +494,7 @@ function toWaNumber(raw) {
 
 /* fallback slots */
 function buildLocalSlots(agentId, dateISO) {
-    const day = new Date(`${dateISO}T00:00:00`).getDay(); // 0 Sun ... 6 Sat
+    const day = new Date(`${dateISO}T00:00:00`).getDay();
     if (day === 0) return [];
 
     let start = "09:00";

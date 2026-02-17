@@ -23,12 +23,12 @@ export default function Footer() {
                 <div className="ft-contact">
                     <a href="mailto:info@aouadrealestate.com" className="ft-link">
                         <HiOutlineMail />
-                        info@aouadrealestate.com
+                        info@aouad.co
                     </a>
 
                     <a href="tel:+96100000000" className="ft-link">
                         <HiOutlinePhone />
-                        +961 00 000 000
+                        +961 03 07 03 83
                     </a>
                 </div>
 

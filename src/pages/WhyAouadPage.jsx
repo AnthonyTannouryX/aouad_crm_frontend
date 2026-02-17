@@ -19,18 +19,19 @@ export default function WhyAouadPage() {
 
                 <div className="whyAouad-heroInner">
                     <div className="whyAouad-heroContent">
-                        <div className="whyAouad-eyebrow">AOUAD REAL ESTATE</div>
+                        <div className="whyAouad-eyebrow">AOUAD.CO
+                        </div>
                         <h1 className="whyAouad-titleSingle">WHY AOUAD</h1>
                         <p className="whyAouad-sub">
-                            Your trusted advisor in Dubai.
+                            Your trusted partner in property investment.
                             <br />
-                            Clear guidance. Smart decisions. Real results.
+                            Precision. Positioning. Performance.
                         </p>
                     </div>
                 </div>
             </section>
 
-            {}
+            { }
             <section className="whyAouad-twoCol">
                 <div className="whyAouad-inner whyAouad-twoColGrid">
 

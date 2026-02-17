@@ -1,3 +1,4 @@
+// src/components/FounderSection.jsx
 import "./founderSection.css";
 import founderImg from "../assets/ourteam/andrew2.jpg";
 
@@ -11,36 +12,39 @@ export default function FounderSection() {
                         <div className="founder-eyebrow">FROM OUR FOUNDER</div>
 
                         <h2 className="founder-title">
-                            “QUITE SIMPLY, OUR SUCCESS IS
+                            “WE DON’T JUST SELL PROPERTY —
                             <br />
-                            BUILT ON YOURS”
+                            WE POSITION YOU FOR THE NEXT LEVEL.”
                         </h2>
 
                         <div className="founder-bullets">
                             <div className="founder-bullet">
                                 <span className="founder-check" aria-hidden="true">✓</span>
                                 <p className="founder-text">
-                                    Real estate isn’t just about transactions it’s about relationships.
-                                    We know that our success is built on yours, which is why we go beyond
-                                    simply finding you a property.
+                                    Real estate isn’t about square meters or transactions.
+                                    It’s about <strong>vision, timing, and making the right move at the right moment</strong>.
+                                    Every decision we guide you through is strategic — never accidental.
                                 </p>
                             </div>
 
                             <div className="founder-bullet">
                                 <span className="founder-check" aria-hidden="true">✓</span>
                                 <p className="founder-text">
-                                    What sets us apart is our personalized approach. We understand your needs,
-                                    anticipate what matters most, and provide a seamless, discreet experience.
-                                    We're not just guiding you through the process—we're your partner, building a
-                                    meaningful, long-term relationship for the future.
+                                    What sets us apart is <strong>precision</strong>.
+                                    We don’t chase listings — we curate opportunities.
+                                    We don’t push deals — we protect value.
+                                    Every project we represent is positioned with intention,
+                                    clarity, and a long-term perspective.
                                 </p>
                             </div>
 
                             <div className="founder-bullet">
                                 <span className="founder-check" aria-hidden="true">✓</span>
                                 <p className="founder-text">
-                                    Your satisfaction isn’t just a goal, it’s the foundation of everything we do.
-                                    When you succeed, we do too.
+                                    At <strong>AOUAD</strong>, success isn’t measured by sales volume.
+                                    It’s measured by the strength of the relationships we build
+                                    and the futures we help secure.
+                                    <strong> When you grow, we grow with you.</strong>
                                 </p>
                             </div>
                         </div>
@@ -49,7 +53,11 @@ export default function FounderSection() {
                     {/* RIGHT */}
                     <div className="founder-right">
                         <div className="founder-photoWrap">
-                            <img className="founder-photo" src={founderImg} alt="Founder" />
+                            <img
+                                className="founder-photo"
+                                src={founderImg}
+                                alt="Founder of AOUAD"
+                            />
                         </div>
                     </div>
                 </div>
