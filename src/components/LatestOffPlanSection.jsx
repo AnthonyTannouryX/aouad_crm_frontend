@@ -1,16 +1,16 @@
 // src/components/LatestOffPlanSection.jsx
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import "./latestOffPlanSection.css";
 
 /* icons */
 import {
-  FaPhoneAlt,
   FaWhatsapp,
   FaChevronRight,
   FaStar,
   FaMapMarkerAlt,
   FaRegCircle,
+  FaCalendarAlt,
 } from "react-icons/fa";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "/api";
@@ -75,18 +75,17 @@ export default function LatestOffPlanSection() {
             }
           } catch (e) {
             lastErr = e;
-            // keep trying next candidate
           }
         }
 
-        // If all candidates failed or returned empty, we still render empty state (no crash)
         if (!alive) return;
 
         setItems(list);
 
-        // Optional: if you want to see which one worked, uncomment:
+        // Debug if needed:
         // console.log("Off-plan loaded count:", list.length);
         // if (!list.length && lastErr) console.warn("Off-plan last error:", lastErr);
+        void lastErr;
       } catch (e) {
         console.error(e);
         if (!alive) return;
@@ -132,7 +131,14 @@ function CardsSkeleton() {
         <div key={i} className="lop-card" style={{ pointerEvents: "none" }}>
           <div className="lop-media" style={{ background: "#eee" }} />
           <div className="lop-body">
-            <div style={{ height: 18, width: "70%", background: "#eee", borderRadius: 6 }} />
+            <div
+              style={{
+                height: 18,
+                width: "70%",
+                background: "#eee",
+                borderRadius: 6,
+              }}
+            />
             <div
               style={{
                 height: 12,
@@ -159,7 +165,9 @@ function CardsSkeleton() {
                 alignItems: "center",
               }}
             >
-              <div style={{ height: 14, width: 120, background: "#eee", borderRadius: 6 }} />
+              <div
+                style={{ height: 14, width: 120, background: "#eee", borderRadius: 6 }}
+              />
               <div style={{ display: "flex", gap: 8 }}>
                 <div style={{ width: 38, height: 38, background: "#eee", borderRadius: 10 }} />
                 <div style={{ width: 38, height: 38, background: "#eee", borderRadius: 10 }} />
@@ -263,7 +271,9 @@ function CardsCarousel({ items }) {
                 <div className="lop-meta-row">
                   <FaMapMarkerAlt className="lop-mini" />
                   <span>
-                    {p.location || [p.country, p.city, p.area].filter(Boolean).join(", ") || "-"}
+                    {p.location ||
+                      [p.country, p.city, p.area].filter(Boolean).join(", ") ||
+                      "-"}
                   </span>
                 </div>
 
@@ -276,37 +286,46 @@ function CardsCarousel({ items }) {
               <div className="lop-line" />
 
               <div className="lop-bottom">
-                <span className="lop-from">
-                  {formatFromPrice(p)}
-                </span>
+                <span className="lop-from">{formatFromPrice(p)}</span>
 
                 <div className="lop-actions">
+                  {/* Calendar */}
                   <button
                     className="lop-ico-btn"
-                    aria-label="Call"
+                    aria-label="Schedule a viewing"
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      // TODO: wire phone (p.agent?.phone or p.phone)
+
+                      // TODO: wire your calendar flow (modal / booking page / calendly)
                       // Example:
-                      // const phone = (p.agent?.phone || p.phone || "").replace(/\s+/g, "");
-                      // if (phone) window.location.href = `tel:${phone}`;
+                      // window.location.href = `/book?listingId=${p.id}`;
                     }}
                   >
-                    <FaPhoneAlt className="lop-action-ico" />
+                    <FaCalendarAlt className="lop-action-ico" />
                   </button>
 
+                  {/* WhatsApp -> assigned agent */}
                   <button
                     className="lop-ico-btn"
-                    aria-label="WhatsApp"
+                    aria-label="WhatsApp agent"
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      // TODO: wire whatsapp (p.agent?.phone or p.phone)
-                      // Example:
-                      // const phone = (p.agent?.phone || p.phone || "").replace(/[^\d+]/g, "");
-                      // const msg = encodeURIComponent(`Hi, I'm interested in ${p.title || "this off-plan property"}.`);
-                      // if (phone) window.open(`https://wa.me/${phone}?text=${msg}`, "_blank");
+
+                      const phone = pickAgentPhone(p);
+                      if (!phone) return;
+
+                      const msg = encodeURIComponent(
+                        `Hi, I'm interested in this property. Could you please share more details?`
+                      );
+
+
+                      window.open(
+                        `https://wa.me/${phone}?text=${msg}`,
+                        "_blank",
+                        "noopener,noreferrer"
+                      );
                     }}
                   >
                     <FaWhatsapp className="lop-action-ico" />
@@ -321,7 +340,10 @@ function CardsCarousel({ items }) {
       {maxIndex > 0 && (
         <div className="lop-section-dots" aria-hidden="true">
           {Array.from({ length: maxIndex + 1 }).map((_, i) => (
-            <span key={i} className={"lop-section-dot" + (i === index ? " is-active" : "")} />
+            <span
+              key={i}
+              className={"lop-section-dot" + (i === index ? " is-active" : "")}
+            />
           ))}
         </div>
       )}
@@ -335,4 +357,24 @@ function formatFromPrice(p) {
   const n = Number(p.priceFrom ?? p.startingPrice ?? p.price ?? 0) || 0;
   if (!n) return "";
   return `From ${cur} ${n.toLocaleString()}`;
+}
+
+function pickAgentPhone(p) {
+  // Try the most likely shapes first
+  const raw =
+    p?.assignedAgent?.phone ||
+    p?.assignedAgent?.whatsapp ||
+    p?.agent?.phone ||
+    p?.agent?.whatsapp ||
+    p?.agentPhone ||
+    p?.whatsapp ||
+    p?.phone ||
+    "";
+
+  // Keep digits and optional leading +
+  const cleaned = String(raw).trim().replace(/[^\d+]/g, "");
+  if (!cleaned) return "";
+
+  // wa.me prefers no '+'
+  return cleaned.startsWith("+") ? cleaned.slice(1) : cleaned;
 }

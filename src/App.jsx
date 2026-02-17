@@ -18,6 +18,7 @@ import OurTeam from "./components/OurTeam.jsx";
 import ClientStories from "./components/ClientStories.jsx";
 import ScheduleCallSection from "./components/ScheduleCallSection.jsx";
 import PopularCountries from "./components/PopularCountries.jsx";
+import ScheduleCallPage from "./pages/ScheduleCallPage";
 
 /* ===== PAGES ===== */
 import ContactPage from "./pages/ContactPage.jsx";
@@ -85,6 +86,7 @@ function PublicApp() {
         <Route path="/contact" element={<ContactPage />} />
         <Route path="/mortgage-calculator" element={<MortgageCalculatorPage />} />
         <Route path="/team/:slug" element={<TeamMemberPage />} />
+        <Route path="/schedule-call" element={<ScheduleCallPage />} />
 
         {/* 404 inside public layout */}
         <Route

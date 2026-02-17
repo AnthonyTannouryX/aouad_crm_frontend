@@ -8,7 +8,7 @@ const CURRENCIES = ["USD", "AED", "EUR", "GBP", "SAR", "QAR", "KWD", "BHD", "OMR
 
 export default function Header() {
     const [mobileOpen, setMobileOpen] = useState(false);
-    const [openAcc, setOpenAcc] = useState(null); // "listings" | "regions" | "company" | "more" | null
+    const [openAcc, setOpenAcc] = useState(null); // "listings" | "regions" | "company" | null
 
     // currency dropdown state
     const [currency, setCurrency] = useState("USD");
@@ -102,7 +102,7 @@ export default function Header() {
                         </div>
                     </div>
 
-                    {/* ✅ Regions (replaces Communities mega + removes View All) */}
+                    {/* Regions (mega) */}
                     <div className="nav-dd nav-dd--mega">
                         <a className="nav-item nav-item--pill" href="#" onClick={(e) => e.preventDefault()}>
                             Regions <CaretDown />
@@ -150,7 +150,6 @@ export default function Header() {
                                     </div>
                                 </div>
 
-                                {/* Optional: Add more regions later */}
                                 <div className="mega-col">
                                     <div className="mega-section">
                                         <div className="mega-h">More</div>
@@ -192,19 +191,10 @@ export default function Header() {
                         </div>
                     </div>
 
-                    {/* More (ONLY Mortgage Calculator now) */}
-                    <div className="nav-dd nav-dd--menu">
-                        <a className="nav-item nav-item--pill" href="#" onClick={(e) => e.preventDefault()}>
-                            More <CaretDown />
-                        </a>
-
-                        <div className="dropdown dropdown--menu">
-                            <Link className="menu-item" to="/mortgage-calculator">
-                                <div className="menu-title">Mortgage Calculator</div>
-                                <div className="menu-subtitle">Calculate Your Mortgage and Plan Ahead</div>
-                            </Link>
-                        </div>
-                    </div>
+                    {/* ✅ Schedule a Call (NO dropdown, same pill style) */}
+                    <Link to="/schedule-call" className="nav-item nav-item--pill" onClick={() => window.scrollTo(0, 0)}>
+                        Schedule a Call
+                    </Link>
                 </nav>
 
                 {/* ACTIONS */}
@@ -285,7 +275,6 @@ export default function Header() {
                         </Link>
                     </MobileAccRow>
 
-                    {/* ✅ Regions accordion (replaces Communities) */}
                     <MobileAccRow label="Regions" open={openAcc === "regions"} onToggle={() => toggleAcc("regions")}>
                         <div className="m-groups">
                             <div className="m-group">
@@ -337,11 +326,10 @@ export default function Header() {
                         </Link>
                     </MobileAccRow>
 
-                    <MobileAccRow label="More" open={openAcc === "more"} onToggle={() => toggleAcc("more")}>
-                        <Link className="m-sub" to="/mortgage-calculator" onClick={closeMobile}>
-                            Mortgage Calculator
-                        </Link>
-                    </MobileAccRow>
+                    {/* ✅ Schedule a Call (mobile link, NO accordion) */}
+                    <Link className="m-main" to="/schedule-call" onClick={closeMobile}>
+                        Schedule a Call
+                    </Link>
                 </div>
 
                 <div className="m-sep" />
