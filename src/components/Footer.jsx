@@ -21,12 +21,12 @@ export default function Footer() {
 
                 {/* CONTACT */}
                 <div className="ft-contact">
-                    <a href="mailto:info@aouadrealestate.com" className="ft-link">
+                    <a href="mailto:info@aouad.co" className="ft-link">
                         <HiOutlineMail />
                         info@aouad.co
                     </a>
 
-                    <a href="tel:+96100000000" className="ft-link">
+                    <a href="tel:+96103070383" className="ft-link">
                         <HiOutlinePhone />
                         +961 03 07 03 83
                     </a>
@@ -34,23 +34,50 @@ export default function Footer() {
 
                 {/* SOCIAL */}
                 <div className="ft-social">
-                    <a href="#" className="ft-soc" aria-label="Facebook">
+                    <a
+                        href="https://www.facebook.com/share/17xPEM5ccE/?mibextid=wwXIfr"
+                        className="ft-soc"
+                        aria-label="Facebook"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                    >
                         <FaFacebookF />
                     </a>
-                    <a href="#" className="ft-soc" aria-label="Instagram">
+
+                    <a
+                        href="https://www.instagram.com/aouad.co?igsh=MTlmc3N1eHA3ZjI3NQ=="
+                        className="ft-soc"
+                        aria-label="Instagram"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                    >
                         <FaInstagram />
                     </a>
-                    <a href="#" className="ft-soc" aria-label="LinkedIn">
+
+                    <a
+                        href="https://www.linkedin.com"
+                        className="ft-soc"
+                        aria-label="LinkedIn"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                    >
                         <FaLinkedinIn />
                     </a>
-                    <a href="#" className="ft-soc" aria-label="WhatsApp">
+
+                    <a
+                        href="https://wa.me/96103070383"
+                        className="ft-soc"
+                        aria-label="WhatsApp"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                    >
                         <FaWhatsapp />
                     </a>
                 </div>
 
                 {/* COPYRIGHT */}
                 <div className="ft-copy">
-                    © All rights reserved. Made by{" "}
+                    © {new Date().getFullYear()} All rights reserved. Made by{" "}
                     <span className="ft-brand">Aouad Real Estate</span>
                 </div>
             </div>

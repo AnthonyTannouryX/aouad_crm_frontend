@@ -1,59 +1,113 @@
-// src/pages/OffPlanPage.jsx
-import { useMemo, useState, useEffect } from "react";
-import { Link } from "react-router-dom";
-import "./offPlanPage.css";
+// src/pages/ListingsPage.jsx
+import { useEffect, useMemo, useState } from "react";
+import { Link, useLocation } from "react-router-dom";
+import "./listingsPage.css";
 
 import {
-  FaMapMarkerAlt,
-  FaRegCircle,
-  FaPhoneAlt,
-  FaWhatsapp,
+  FaBed,
+  FaBath,
+  FaCar,
+  FaRulerCombined,
   FaChevronDown,
   FaSlidersH,
-  FaMapMarkedAlt,
   FaTimes,
   FaHome,
-  FaCalendarAlt,
   FaTag,
 } from "react-icons/fa";
 
-const API_BASE = import.meta.env.VITE_API_BASE || "/api";
+const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:4000/api";
 
-export default function OffPlanPage() {
-  const [location, setLocation] = useState("Any location");
-  const [type, setType] = useState("Type");
-  const [completion, setCompletion] = useState("Completion Date");
-  const [price, setPrice] = useState("Price Range");
-  const [sort, setSort] = useState("Recommended");
+const COUNTRY_LABELS = {
+  dubai: "Dubai",
+  lebanon: "Lebanon",
+  "saudi-arabia": "Saudi Arabia",
+  greece: "Greece",
+  cyprus: "Cyprus",
+  france: "France",
+  spain: "Spain",
+  italy: "Italy",
+};
 
+function useQuery() {
+  const { search } = useLocation();
+  return useMemo(() => new URLSearchParams(search), [search]);
+}
+
+function xNumSafe(v) {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function formatPrice(p) {
+  const n = p?.priceFrom ?? p?.startingPrice ?? null;
+  if (n == null || n === "") return "Price on request";
+  const num = Number(n);
+  if (Number.isNaN(num)) return "Price on request";
+  return `From ${p?.currency || "USD"} ${num.toLocaleString()}`;
+}
+
+function areaLabel(p) {
+  if (p?.sizeSqm != null && p.sizeSqm !== "") {
+    const n = Number(p.sizeSqm);
+    if (!Number.isNaN(n) && n > 0) return `${n.toLocaleString()} m²`;
+  }
+  if (p?.sizeSqft != null && p.sizeSqft !== "") {
+    const n = Number(p.sizeSqft);
+    if (!Number.isNaN(n) && n > 0) return `${n.toLocaleString()} sq.ft`;
+  }
+  return "-";
+}
+
+function typeLabel(p) {
+  return p?.propertyType || "Property";
+}
+
+function statusLabel(p) {
+  if (p?.listingType === "FOR_RENT") return "For Rent";
+  if (p?.listingType === "FOR_SALE") return "For Sale";
+  if (p?.listingType === "OFF_PLAN") return "Off-Plan";
+  return "Listing";
+}
+
+export default function ListingsPage() {
+  const loc = useLocation();
+  const q = useQuery();
+
+  const country = (q.get("country") || "").trim().toLowerCase();
+  const countryLabel = country ? COUNTRY_LABELS[country] || country : "";
+
+  // /rent => FOR_RENT, /sale => FOR_SALE, otherwise all
+  const listingType = useMemo(() => {
+    if (loc.pathname === "/rent") return "FOR_RENT";
+    if (loc.pathname === "/sale") return "FOR_SALE";
+    return null;
+  }, [loc.pathname]);
+
+  const pageTitle = useMemo(() => {
+    const base =
+      listingType === "FOR_RENT"
+        ? "FOR RENT"
+        : listingType === "FOR_SALE"
+          ? "FOR SALE"
+          : "LISTINGS";
+    return base;
+  }, [listingType]);
+
+  // ✅ Filters (no location filter anymore)
+  const [typeFilter, setTypeFilter] = useState("Type");
+  const [priceFilter, setPriceFilter] = useState("Price Range");
+  const [sort, setSort] = useState("Price: Low to High"); // ✅ default
   const [filtersOpen, setFiltersOpen] = useState(false);
-
   const [developer, setDeveloper] = useState("Any developer");
-  const [brandedOnly, setBrandedOnly] = useState(false);
-  const [downpayment, setDownpayment] = useState("Any Downpayment");
-  const [postHandover, setPostHandover] = useState(false);
-
-  const PAGE_SIZE = 9;
-  const [page, setPage] = useState(1);
-
-  const [showTop, setShowTop] = useState(false);
 
   // ✅ DATA
-  const [items, setItems] = useState([]);
+  const [rawItems, setRawItems] = useState([]);
   const [loading, setLoading] = useState(true);
-
-  // floating top
-  useEffect(() => {
-    const onScroll = () => setShowTop(window.scrollY > 600);
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
+  const [err, setErr] = useState("");
 
   // drawer lock + ESC
   useEffect(() => {
     const prev = document.body.style.overflow;
-
     if (filtersOpen) document.body.style.overflow = "hidden";
     else document.body.style.overflow = prev;
 
@@ -61,480 +115,336 @@ export default function OffPlanPage() {
       if (e.key === "Escape") setFiltersOpen(false);
     };
     document.addEventListener("keydown", onKey);
-
     return () => {
       document.body.style.overflow = prev;
       document.removeEventListener("keydown", onKey);
     };
   }, [filtersOpen]);
 
-  // ✅ Fetch OFF_PLAN from PUBLIC route (no auth)
+  // ✅ Fetch listings from public endpoint
   useEffect(() => {
     let alive = true;
 
-    async function load() {
+    (async () => {
       try {
         setLoading(true);
+        setErr("");
 
-        const res = await fetch(
-          `${API_BASE}/public/listings?listingType=OFF_PLAN&limit=200`
-        );
-        const json = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(json?.error || "Failed to fetch off-plan");
+        const url = new URL(`${API_BASE}/public/listings`);
+        url.searchParams.set("limit", "100");
+        if (country) url.searchParams.set("country", country);
+        if (listingType) url.searchParams.set("listingType", listingType);
 
-        const rawList = Array.isArray(json) ? json : json.items;
-        const list = Array.isArray(rawList) ? rawList : [];
+        const qpListingType = (q.get("listingType") || "").trim();
+        if (qpListingType) url.searchParams.set("listingType", qpListingType);
 
-        // ✅ map backend response to what your UI expects
-        const mapped = list.map((l) => {
-          const handoverYear = l?.handover?.match(/\d{4}/)?.[0] || null;
-          return {
-            id: l.id,
-            title: l.title,
-            featured: !!l.featured,
-            location: l.location,
-            paymentPlan: l.paymentPlan,
-            handover: l.handover,
-            developer: l.developer || l.developerName || "",
-            image: l.mainImageUrl,
-            priceAed: l.priceFrom
-              ? `From ${l.currency || "USD"} ${Number(l.priceFrom).toLocaleString()}`
-              : "Price on request",
-            completionYear: handoverYear ? Number(handoverYear) : 0,
-            _raw: l,
-          };
-        });
-
+        const res = await fetch(url.toString());
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data?.error || "Failed to load listings");
         if (!alive) return;
-        setItems(mapped);
+
+        const list = Array.isArray(data) ? data : data.items;
+        setRawItems(Array.isArray(list) ? list : []);
       } catch (e) {
-        console.error(e);
-        if (alive) setItems([]);
+        if (!alive) return;
+        setRawItems([]);
+        setErr(e.message || "Failed to load listings");
       } finally {
         if (alive) setLoading(false);
       }
-    }
+    })();
 
-    load();
     return () => {
       alive = false;
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [country, listingType, loc.search]);
 
-  // ✅ dynamic options from data (so filters always match your DB)
-  const locationOptions = useMemo(() => {
-    const set = new Set();
-    items.forEach((x) => {
-      const v = String(x.location || "").trim();
-      if (v) set.add(v);
-    });
-    return ["Any location", ...Array.from(set).sort((a, b) => a.localeCompare(b))];
-  }, [items]);
-
+  // dropdown options from data
   const typeOptions = useMemo(() => {
     const set = new Set();
-    items.forEach((x) => {
-      const v = String(x._raw?.propertyType || "").trim();
+    rawItems.forEach((p) => {
+      const v = (p?.propertyType || "").trim();
       if (v) set.add(v);
     });
     return ["Type", ...Array.from(set).sort((a, b) => a.localeCompare(b))];
-  }, [items]);
+  }, [rawItems]);
 
   const developerOptions = useMemo(() => {
     const set = new Set();
-    items.forEach((x) => {
-      const v = String(x.developer || "").trim();
+    rawItems.forEach((p) => {
+      const v = (p?.developer || p?.developerName || "").trim();
       if (v) set.add(v);
     });
     return ["Any developer", ...Array.from(set).sort((a, b) => a.localeCompare(b))];
-  }, [items]);
+  }, [rawItems]);
 
-  const completionOptions = useMemo(() => {
-    const set = new Set();
-    items.forEach((x) => {
-      if (x.completionYear) set.add(String(x.completionYear));
-    });
-    const years = Array.from(set).sort((a, b) => Number(a) - Number(b));
-    return ["Completion Date", ...years, "2030+"];
-  }, [items]);
+  // ✅ Filter + sort (no location filtering anymore)
+  const filteredRaw = useMemo(() => {
+    let list = [...rawItems];
 
-  // ✅ Filter + sort (FIXED)
-  const filtered = useMemo(() => {
-    let list = [...items];
-
-    // Location (exact match works best when options are from data)
-    if (location !== "Any location") {
+    // type
+    if (typeFilter !== "Type") {
       list = list.filter(
-        (x) => String(x.location || "").trim().toLowerCase() === location.toLowerCase()
+        (p) =>
+          String(p?.propertyType || "")
+            .trim()
+            .toLowerCase() === typeFilter.toLowerCase()
       );
     }
 
-    // Type
-    if (type !== "Type") {
-      list = list.filter((x) =>
-        String(x._raw?.propertyType || "").trim().toLowerCase().includes(type.toLowerCase())
-      );
-    }
-
-    // Completion (uses mapped completionYear ✅)
-    if (completion !== "Completion Date") {
-      if (completion === "2030+") {
-        list = list.filter((x) => xNumSafe(x.completionYear) >= 2030);
-      } else {
-        const year = Number(completion);
-        list = list.filter((x) => xNumSafe(x.completionYear) === year);
-      }
-    }
-
-    // Developer (exact match)
+    // developer
     if (developer !== "Any developer") {
-      list = list.filter(
-        (x) => String(x.developer || "").trim().toLowerCase() === developer.toLowerCase()
-      );
+      list = list.filter((p) => {
+        const d = String(p?.developer || p?.developerName || "")
+          .trim()
+          .toLowerCase();
+        return d === developer.toLowerCase();
+      });
     }
 
-    // Price range (FIXED)
-    if (price !== "Price Range") {
+    // price range
+    if (priceFilter !== "Price Range") {
       const inRange = (n) => {
         if (!Number.isFinite(n) || n <= 0) return false;
-        if (price === "Under 1M") return n < 1_000_000;
-        if (price === "1M - 3M") return n >= 1_000_000 && n <= 3_000_000;
-        if (price === "3M - 7M") return n >= 3_000_000 && n <= 7_000_000;
-        if (price === "7M+") return n >= 7_000_000;
+        if (priceFilter === "Under 1M") return n < 1_000_000;
+        if (priceFilter === "1M - 3M") return n >= 1_000_000 && n <= 3_000_000;
+        if (priceFilter === "3M - 7M") return n >= 3_000_000 && n <= 7_000_000;
+        if (priceFilter === "7M+") return n >= 7_000_000;
         return true;
       };
-      list = list.filter((x) =>
-        inRange(xNumSafe(x._raw?.priceFrom ?? x._raw?.startingPrice))
+
+      list = list.filter((p) =>
+        inRange(xNumSafe(p?.priceFrom ?? p?.startingPrice))
       );
     }
 
-    // optional toggles (placeholders; do not break anything)
-    if (brandedOnly) {
-      // if you add a field later: x._raw?.isBranded === true
-    }
-    if (postHandover) {
-      // if you add a field later
-    }
-    if (downpayment !== "Any Downpayment") {
-      // if you add a field later
-    }
-
-    // Sort
+    // sort
     if (sort === "Price: Low to High") {
       list.sort(
         (a, b) =>
-          xNumSafe(a._raw?.priceFrom ?? a._raw?.startingPrice) -
-          xNumSafe(b._raw?.priceFrom ?? b._raw?.startingPrice)
+          xNumSafe(a?.priceFrom ?? a?.startingPrice) -
+          xNumSafe(b?.priceFrom ?? b?.startingPrice)
       );
     } else if (sort === "Price: High to Low") {
       list.sort(
         (a, b) =>
-          xNumSafe(b._raw?.priceFrom ?? b._raw?.startingPrice) -
-          xNumSafe(a._raw?.priceFrom ?? a._raw?.startingPrice)
+          xNumSafe(b?.priceFrom ?? b?.startingPrice) -
+          xNumSafe(a?.priceFrom ?? a?.startingPrice)
       );
-    } else if (sort === "Handover: Soonest") {
-      list.sort((a, b) => xNumSafe(a.completionYear) - xNumSafe(b.completionYear));
     }
 
     return list;
-  }, [
-    items,
-    location,
-    type,
-    completion,
-    price,
-    developer,
-    brandedOnly,
-    downpayment,
-    postHandover,
-    sort,
-  ]);
+  }, [rawItems, typeFilter, developer, priceFilter, sort]);
 
-  const total = filtered.length;
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  // Map to card shape (no map icon)
+  const items = useMemo(() => {
+    return filteredRaw.map((p) => ({
+      id: p.id,
+      brand: p.developer || p.developerName || "Listing",
+      type: typeLabel(p),
+      status: statusLabel(p),
+      price: formatPrice(p),
+      location: p.location || "-", // keep text, no pin icon
+      beds: p.bedrooms ?? "-",
+      baths: p.bathrooms ?? "-",
+      parking: p.parking ?? "-",
+      area: areaLabel(p),
+      img: p.mainImageUrl || "",
+    }));
+  }, [filteredRaw]);
 
-  const paged = useMemo(() => {
-    const start = (page - 1) * PAGE_SIZE;
-    return filtered.slice(start, start + PAGE_SIZE);
-  }, [filtered, page]);
-
+  // reset filters when switching base route/country
   useEffect(() => {
-    setPage(1);
-  }, [location, type, completion, price, developer, brandedOnly, downpayment, postHandover, sort]);
-
-  const goPage = (p) => {
-    const next = Math.max(1, Math.min(totalPages, p));
-    setPage(next);
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
+    setTypeFilter("Type");
+    setPriceFilter("Price Range");
+    setDeveloper("Any developer");
+    setSort("Price: Low to High"); // ✅ default
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [listingType, country]);
 
   const clearAll = () => {
-    setLocation("Any location");
-    setType("Type");
-    setCompletion("Completion Date");
-    setPrice("Price Range");
+    setTypeFilter("Type");
+    setPriceFilter("Price Range");
     setDeveloper("Any developer");
-    setBrandedOnly(false);
-    setDownpayment("Any Downpayment");
-    setPostHandover(false);
   };
 
   const applyFilters = () => setFiltersOpen(false);
 
   return (
-    <main className="op">
-      <div className="op-inner">
-        {/* breadcrumb */}
-        <div className="op-bc">
-          <span className="op-bc-strong">Aouad </span>
-          <span className="op-bc-sep">›</span>
-          <span className="op-bc-muted">Off-Plan</span>
+    <main className="lp2">
+      <div className="lp2-inner">
+        {/* title */}
+        <div className="lp2-top">
+          <h1 className="lp2-title">
+            {pageTitle}{" "}
+            {countryLabel ? <span className="lp2-sub">— {countryLabel}</span> : null}
+          </h1>
         </div>
 
-        {/* top filters row */}
-        <div className="op-filters">
-          <SelectPill
-            icon={<FaMapMarkerAlt />}
-            value={location}
-            onChange={setLocation}
-            options={locationOptions}
-          />
+        {/* filters row (no location pill) */}
+        <div className="lp2-filters">
           <SelectPill
             icon={<FaHome />}
-            value={type}
-            onChange={setType}
+            value={typeFilter}
+            onChange={setTypeFilter}
             options={typeOptions}
           />
-          <SelectPill
-            icon={<FaCalendarAlt />}
-            value={completion}
-            onChange={setCompletion}
-            options={completionOptions}
-          />
+
           <SelectPill
             icon={<FaTag />}
-            value={price}
-            onChange={setPrice}
+            value={priceFilter}
+            onChange={setPriceFilter}
             options={["Price Range", "Under 1M", "1M - 3M", "3M - 7M", "7M+"]}
           />
 
-          <button className="op-more" type="button" onClick={() => setFiltersOpen(true)}>
+          <button className="lp2-more" type="button" onClick={() => setFiltersOpen(true)}>
             More Filters <FaSlidersH />
           </button>
         </div>
 
         {/* results row */}
-        <div className="op-row">
-          <div className="op-count">{loading ? "Loading..." : `Showing ${total} results`}</div>
+        <div className="lp2-row">
+          <div className="lp2-count">
+            {loading ? "Loading..." : err ? err : `Showing ${items.length} results`}
+          </div>
 
-          <div className="op-actions">
-            <div className="op-sortPill">
-              <span className="op-sortIcon">⇅</span>
-              <select className="op-sortSel" value={sort} onChange={(e) => setSort(e.target.value)}>
-                <option>Recommended</option>
+          <div className="lp2-actions">
+            <div className="lp2-sortPill">
+              <span className="lp2-sortIcon">⇅</span>
+              <select
+                className="lp2-sortSel"
+                value={sort}
+                onChange={(e) => setSort(e.target.value)}
+              >
                 <option>Price: Low to High</option>
                 <option>Price: High to Low</option>
-                <option>Handover: Soonest</option>
               </select>
-              <FaChevronDown className="op-sortChev" />
+              <FaChevronDown className="lp2-sortChev" />
             </div>
-
-            <button className="op-map" type="button">
-              <FaMapMarkedAlt /> Map View
-            </button>
           </div>
         </div>
 
-        {/* cards */}
-        <section className="op-grid">
-          {!loading && paged.length === 0 ? (
-            <div style={{ padding: "18px 0", color: "#6b7280" }}>
-              No off-plan listings found.
-            </div>
-          ) : (
-            paged.map((p) => (
+        {/* grid */}
+        {loading ? (
+          <div className="lp2-empty">Loading…</div>
+        ) : err ? (
+          <div className="lp2-empty">{err}</div>
+        ) : items.length === 0 ? (
+          <div className="lp2-empty">No listings found.</div>
+        ) : (
+          <div className="lp2-grid">
+            {items.map((x) => (
               <Link
-                className="op-card"
-                key={p.id}
-                to={`/listing/${p.id}`}
+                className="ll-card"
+                key={x.id}
+                to={`/listing/${x.id}`}
                 onClick={() => window.scrollTo(0, 0)}
-                aria-label={`Open listing: ${p.title}`}
+                aria-label={`Open listing: ${x.location}`}
               >
-                <div className="op-media">
-                  <img
-                    className="op-img"
-                    src={p.image || "/placeholder.jpg"}
-                    alt={p.title}
-                    onError={(e) => {
-                      e.currentTarget.src = "/placeholder.jpg";
-                    }}
-                  />
+                <div className="ll-media">
+                  {x.img ? (
+                    <img
+                      className="ll-img"
+                      src={x.img}
+                      alt={x.location}
+                      onError={(e) => {
+                        e.currentTarget.src = "/placeholder-listing.jpg";
+                      }}
+                    />
+                  ) : (
+                    <div className="ll-img" style={{ background: "#eee" }} />
+                  )}
 
-                  <div className="op-badges">
-                    {p.featured && (
-                      <div className="op-badge op-badge--featured">
-                        Featured <span className="op-star">☆</span>
-                      </div>
-                    )}
-                    {p.handover && <div className="op-badge op-badge--handover">{p.handover}</div>}
-                    {p.developer && <div className="op-badge op-badge--dev">{p.developer}</div>}
+                  <div className="ll-tags">
+                    <span className="ll-tag ll-tag--black">{x.brand}</span>
+                    <span className="ll-tag ll-tag--light">{x.type}</span>
+                    <span className="ll-tag ll-tag--gray">{x.status}</span>
                   </div>
                 </div>
 
-                <div className="op-body">
-                  <h3 className="op-title">{p.title}</h3>
+                <div className="ll-body">
+                  <div className="ll-price">{x.price}</div>
 
-                  <div className="op-meta">
-                    <div className="op-meta-row">
-                      <FaMapMarkerAlt className="op-mini" />
-                      <span>{p.location}</span>
-                    </div>
-                    <div className="op-meta-row">
-                      <FaRegCircle className="op-mini" />
-                      <span>Payment Plan: {p.paymentPlan}</span>
-                    </div>
+                  {/* ✅ no map icon */}
+                  <div className="ll-loc">
+                    <span>{x.location}</span>
                   </div>
 
-                  <div className="op-divider" />
+                  <div className="ll-line" />
 
-                  <div className="op-bottom">
-                    <div className="op-price">{p.priceAed}</div>
-
-                    <div className="op-ctas">
-                      <button
-                        className="op-ico"
-                        type="button"
-                        aria-label="Call"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                        }}
-                      >
-                        <FaPhoneAlt />
-                      </button>
-
-                      <button
-                        className="op-ico"
-                        type="button"
-                        aria-label="WhatsApp"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                        }}
-                      >
-                        <FaWhatsapp />
-                      </button>
+                  <div className="ll-specs">
+                    <div className="ll-spec">
+                      <FaBed className="ll-ico" />
+                      <span>{x.beds}</span>
+                    </div>
+                    <div className="ll-spec">
+                      <FaBath className="ll-ico" />
+                      <span>{x.baths}</span>
+                    </div>
+                    <div className="ll-spec">
+                      <FaCar className="ll-ico" />
+                      <span>{x.parking}</span>
+                    </div>
+                    <div className="ll-spec ll-spec--area">
+                      <FaRulerCombined className="ll-ico" />
+                      <span>{x.area}</span>
                     </div>
                   </div>
                 </div>
               </Link>
-            ))
-          )}
-        </section>
-
-        {/* pagination */}
-        {!loading && totalPages > 1 && (
-          <div className="op-pager">
-            <button className="op-pgArrow" onClick={() => goPage(page - 1)} disabled={page === 1}>
-              ‹
-            </button>
-
-            {Array.from({ length: Math.min(10, totalPages) }).map((_, i) => {
-              const n = i + 1;
-              return (
-                <button
-                  key={n}
-                  className={"op-pgNum" + (n === page ? " is-active" : "")}
-                  onClick={() => goPage(n)}
-                >
-                  {n}
-                </button>
-              );
-            })}
-
-            <button className="op-pgArrow" onClick={() => goPage(page + 1)} disabled={page === totalPages}>
-              ›
-            </button>
+            ))}
           </div>
         )}
       </div>
 
-      {/* FLOATING TOP */}
-      <button
-        className={"op-top" + (showTop ? " is-show" : "")}
-        onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-        aria-label="Scroll to top"
-      >
-        <span className="op-topArrow">↑</span>
-        <span className="op-topText">TOP</span>
-      </button>
-
       {/* DRAWER */}
-      <div className={"op-dim" + (filtersOpen ? " is-open" : "")} onClick={() => setFiltersOpen(false)} />
+      <div
+        className={"lp2-dim" + (filtersOpen ? " is-open" : "")}
+        onClick={() => setFiltersOpen(false)}
+      />
 
-      <aside className={"op-drawer" + (filtersOpen ? " is-open" : "")} aria-hidden={!filtersOpen}>
-        <div className="op-drawerTop">
-          <h3 className="op-drawerTitle">All filters</h3>
-          <button className="op-x" type="button" aria-label="Close" onClick={() => setFiltersOpen(false)}>
+      <aside className={"lp2-drawer" + (filtersOpen ? " is-open" : "")} aria-hidden={!filtersOpen}>
+        <div className="lp2-drawerTop">
+          <h3 className="lp2-drawerTitle">All filters</h3>
+          <button
+            className="lp2-x"
+            type="button"
+            aria-label="Close"
+            onClick={() => setFiltersOpen(false)}
+          >
             <FaTimes />
           </button>
         </div>
 
-        <div className="op-drawerBody">
-          <div className="op-dgrid">
-            <div className="op-field">
-              <div className="op-lbl">Choose a community</div>
-              <DrawerSelect value={location} onChange={setLocation} options={locationOptions} />
+        <div className="lp2-drawerBody">
+          <div className="lp2-dgrid">
+            <div className="lp2-field">
+              <div className="lp2-lbl">Development Type</div>
+              <DrawerSelect value={typeFilter} onChange={setTypeFilter} options={typeOptions} />
             </div>
 
-            <div className="op-field">
-              <div className="op-lbl">Choose a developer</div>
+            <div className="lp2-field">
+              <div className="lp2-lbl">Choose a developer</div>
               <DrawerSelect value={developer} onChange={setDeveloper} options={developerOptions} />
             </div>
 
-            <div className="op-field">
-              <div className="op-lbl">Completion Date</div>
-              <DrawerSelect value={completion} onChange={setCompletion} options={completionOptions} />
-            </div>
-
-            <div className="op-field">
-              <div className="op-lbl">Development Type</div>
-              <DrawerSelect value={type} onChange={setType} options={typeOptions} />
-            </div>
-
-            <div className="op-field">
-              <div className="op-lbl">Price Range</div>
-              <DrawerSelect value={price} onChange={setPrice} options={["Price Range", "Under 1M", "1M - 3M", "3M - 7M", "7M+"]} />
-            </div>
-
-            <div className="op-field">
-              <div className="op-lbl">Branded Properties</div>
-              <label className="op-check">
-                <input type="checkbox" checked={brandedOnly} onChange={(e) => setBrandedOnly(e.target.checked)} />
-                <span>Show only branded</span>
-              </label>
-            </div>
-
-            <div className="op-field">
-              <div className="op-lbl">Downpayment Options</div>
-              <DrawerSelect value={downpayment} onChange={setDownpayment} options={["Any Downpayment", "5%", "10%", "15%", "20%+"]} />
-            </div>
-
-            <div className="op-field">
-              <div className="op-lbl">Post Handover Payment</div>
-              <label className="op-check">
-                <input type="checkbox" checked={postHandover} onChange={(e) => setPostHandover(e.target.checked)} />
-                <span>Post-handover payment plan</span>
-              </label>
+            <div className="lp2-field">
+              <div className="lp2-lbl">Price Range</div>
+              <DrawerSelect
+                value={priceFilter}
+                onChange={setPriceFilter}
+                options={["Price Range", "Under 1M", "1M - 3M", "3M - 7M", "7M+"]}
+              />
             </div>
           </div>
         </div>
 
-        <div className="op-drawerBottom">
-          <button className="op-clear" type="button" onClick={clearAll}>
+        <div className="lp2-drawerBottom">
+          <button className="lp2-clear" type="button" onClick={clearAll}>
             Clear all
           </button>
-          <button className="op-apply" type="button" onClick={applyFilters}>
+          <button className="lp2-apply" type="button" onClick={applyFilters}>
             Filter properties
           </button>
         </div>
@@ -545,12 +455,12 @@ export default function OffPlanPage() {
 
 function SelectPill({ icon, value, onChange, options }) {
   return (
-    <div className="op-pill">
-      <span className="op-pillFa" aria-hidden="true">
+    <div className="lp2-pill">
+      <span className="lp2-pillFa" aria-hidden="true">
         {icon}
       </span>
 
-      <select className="op-pillSel" value={value} onChange={(e) => onChange(e.target.value)}>
+      <select className="lp2-pillSel" value={value} onChange={(e) => onChange(e.target.value)}>
         {options.map((o) => (
           <option key={o} value={o}>
             {o}
@@ -558,27 +468,22 @@ function SelectPill({ icon, value, onChange, options }) {
         ))}
       </select>
 
-      <FaChevronDown className="op-pillChev" />
+      <FaChevronDown className="lp2-pillChev" />
     </div>
   );
 }
 
 function DrawerSelect({ value, onChange, options }) {
   return (
-    <div className="op-dselWrap">
-      <select className="op-dsel" value={value} onChange={(e) => onChange(e.target.value)}>
+    <div className="lp2-dselWrap">
+      <select className="lp2-dsel" value={value} onChange={(e) => onChange(e.target.value)}>
         {options.map((o) => (
           <option key={o} value={o}>
             {o}
           </option>
         ))}
       </select>
-      <FaChevronDown className="op-dselChev" />
+      <FaChevronDown className="lp2-dselChev" />
     </div>
   );
-}
-
-function xNumSafe(v) {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : 0;
 }
