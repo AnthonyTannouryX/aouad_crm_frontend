@@ -1,0 +1,80 @@
+/* === Clean mode overrides === */
+.cs-card--clean {
+    display: block;
+    /* remove 2 columns */
+}
+
+.cs-card--clean .cs-text-viewport {
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+    /* firefox */
+}
+
+.cs-card--clean .cs-text-viewport::-webkit-scrollbar {
+    display: none;
+}
+
+.cs-card--clean .cs-text-slide {
+    min-width: 100%;
+    scroll-snap-align: start;
+    padding: 26px;
+}
+
+.cs-author--clean {
+    margin-top: 18px;
+    display: grid;
+    gap: 4px;
+}
+
+.cs-author--clean .cs-name {
+    font-weight: 700;
+}
+
+.cs-author--clean .cs-role {
+    font-size: 13px;
+    color: #666;
+}
+
+/* optional dots (very minimal) */
+.cs-dots {
+    display: flex;
+    gap: 8px;
+    padding: 0 26px 18px;
+}
+
+.cs-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 999px;
+    border: 1px solid #111;
+    background: transparent;
+    cursor: pointer;
+    opacity: 0.35;
+}
+
+.cs-dot.is-active {
+    background: #111;
+    opacity: 1;
+}
+
+/* clean version (no image) */
+.cs-card--clean {
+    padding: 24px;
+}
+
+.cs-author--clean {
+    margin-top: 18px;
+    display: grid;
+    gap: 4px;
+}
+
+.cs-name {
+    font-weight: 800;
+}
+
+.cs-role {
+    font-size: 13px;
+    color: #666;
+}
