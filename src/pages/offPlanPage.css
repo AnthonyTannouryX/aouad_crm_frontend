@@ -868,3 +868,116 @@
         height: 16px;
     }
 }
+
+/* ===== Price Range pill (make it look like the select pills) ===== */
+.op-pillPrice {
+    position: relative;
+}
+
+/* kill default button styling that causes that inner box */
+.op-pillBtn {
+    height: 50px;
+    width: 100%;
+    border: 0 !important;
+    outline: none;
+    background: transparent !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+
+    text-align: left;
+    font-size: 15px;
+    color: rgba(17, 24, 39, 0.7);
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+}
+
+.op-pillBtn:focus {
+    outline: none;
+}
+
+.op-pillBtn::-moz-focus-inner {
+    border: 0;
+}
+
+/* rotate chevron when open */
+.op-pillChev.is-open {
+    transform: rotate(180deg);
+}
+
+/* popover */
+.op-pricePop {
+    position: absolute;
+    left: 0;
+    top: calc(100% + 10px);
+    width: 100%;
+    background: #fff;
+    border: 1px solid rgba(15, 23, 42, 0.14);
+    border-radius: 14px;
+    box-shadow: 0 18px 40px rgba(15, 23, 42, 0.16);
+    padding: 14px;
+    z-index: 50;
+    display: grid;
+    gap: 10px;
+}
+
+.op-priceRow {
+    display: grid;
+    grid-template-columns: 44px 1fr;
+    gap: 10px;
+    align-items: center;
+}
+
+.op-priceLbl {
+    font-size: 13px;
+    color: rgba(17, 24, 39, 0.6);
+    font-weight: 600;
+}
+
+.op-priceInp {
+    height: 40px;
+    border-radius: 12px;
+    border: 1px solid rgba(15, 23, 42, 0.14);
+    padding: 0 12px;
+    font-size: 14px;
+    outline: none;
+    color: rgba(17, 24, 39, 0.8);
+}
+
+.op-priceActions {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    margin-top: 6px;
+}
+
+.op-priceClear {
+    border: 0;
+    background: transparent;
+    color: rgba(17, 24, 39, 0.6);
+    font-size: 14px;
+    cursor: pointer;
+    text-decoration: underline;
+    padding: 8px 6px;
+}
+
+.op-priceOk {
+    height: 38px;
+    padding: 0 14px;
+    border-radius: 12px;
+    border: 1px solid rgba(15, 23, 42, 0.14);
+    background: #0b0b0c;
+    color: #fff;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.op-filters {
+    display: grid;
+    grid-template-columns: 1.3fr 1fr 1fr;
+    /* ✅ only 3 controls */
+    gap: 14px;
+    align-items: center;
+    margin-bottom: 34px;
+}

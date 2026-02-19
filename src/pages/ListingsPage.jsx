@@ -98,7 +98,11 @@ export default function ListingsPage() {
   // ✅ Filters
   const [locationFilter, setLocationFilter] = useState("Any location");
   const [typeFilter, setTypeFilter] = useState("Type");
-  const [priceFilter, setPriceFilter] = useState("Price Range");
+
+  // ✅ Custom typed range
+  const [priceMin, setPriceMin] = useState("");
+  const [priceMax, setPriceMax] = useState("");
+
   const [sort, setSort] = useState("Recommended");
 
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -227,20 +231,21 @@ export default function ListingsPage() {
       });
     }
 
-    // price range
-    if (priceFilter !== "Price Range") {
-      const inRange = (n) => {
-        if (!Number.isFinite(n) || n <= 0) return false;
-        if (priceFilter === "Under 1M") return n < 1_000_000;
-        if (priceFilter === "1M - 3M") return n >= 1_000_000 && n <= 3_000_000;
-        if (priceFilter === "3M - 7M") return n >= 3_000_000 && n <= 7_000_000;
-        if (priceFilter === "7M+") return n >= 7_000_000;
-        return true;
-      };
+    // ✅ price min/max (typed)
+    const min = Number(String(priceMin || "").replace(/,/g, ""));
+    const max = Number(String(priceMax || "").replace(/,/g, ""));
 
-      list = list.filter((p) =>
-        inRange(xNumSafe(p?.priceFrom ?? p?.startingPrice))
-      );
+    const hasMin = Number.isFinite(min) && min > 0;
+    const hasMax = Number.isFinite(max) && max > 0;
+
+    if (hasMin || hasMax) {
+      list = list.filter((p) => {
+        const n = xNumSafe(p?.priceFrom ?? p?.startingPrice);
+        if (!Number.isFinite(n) || n <= 0) return false; // "price on request" excluded when filtering
+        if (hasMin && n < min) return false;
+        if (hasMax && n > max) return false;
+        return true;
+      });
     }
 
     // sort
@@ -259,13 +264,20 @@ export default function ListingsPage() {
     }
 
     return list;
-  }, [rawItems, locationFilter, typeFilter, developer, priceFilter, sort]);
+  }, [rawItems, locationFilter, typeFilter, developer, priceMin, priceMax, sort]);
 
   // ✅ Map to card shape (NO carousel dots)
   const items = useMemo(() => {
     return filteredRaw.map((p) => ({
       id: p.id,
-      brand: p.developer || p.developerName || "Listing",
+      brand:
+        p.title ||
+        p.name ||
+        p.projectName ||
+        p.propertyName ||
+        p.listingTitle ||
+        p.meta?.title ||
+        "Property",
       type: typeLabel(p),
       status: statusLabel(p),
       price: formatPrice(p),
@@ -282,7 +294,8 @@ export default function ListingsPage() {
   useEffect(() => {
     setLocationFilter("Any location");
     setTypeFilter("Type");
-    setPriceFilter("Price Range");
+    setPriceMin("");
+    setPriceMax("");
     setDeveloper("Any developer");
     setSort("Recommended");
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -291,7 +304,8 @@ export default function ListingsPage() {
   const clearAll = () => {
     setLocationFilter("Any location");
     setTypeFilter("Type");
-    setPriceFilter("Price Range");
+    setPriceMin("");
+    setPriceMax("");
     setDeveloper("Any developer");
   };
 
@@ -324,11 +338,13 @@ export default function ListingsPage() {
             options={typeOptions}
           />
 
-          <SelectPill
+          {/* ✅ custom price range dropdown */}
+          <PriceRangePill
             icon={<FaTag />}
-            value={priceFilter}
-            onChange={setPriceFilter}
-            options={["Price Range", "Under 1M", "1M - 3M", "3M - 7M", "7M+"]}
+            min={priceMin}
+            max={priceMax}
+            onMin={setPriceMin}
+            onMax={setPriceMax}
           />
 
           <button className="lp2-more" type="button" onClick={() => setFiltersOpen(true)}>
@@ -469,13 +485,32 @@ export default function ListingsPage() {
               <DrawerSelect value={developer} onChange={setDeveloper} options={developerOptions} />
             </div>
 
+            {/* ✅ Drawer custom price */}
             <div className="lp2-field">
               <div className="lp2-lbl">Price Range</div>
-              <DrawerSelect
-                value={priceFilter}
-                onChange={setPriceFilter}
-                options={["Price Range", "Under 1M", "1M - 3M", "3M - 7M", "7M+"]}
-              />
+              <div className="lp2-priceDrawer">
+                <div className="lp2-priceRow">
+                  <label className="lp2-priceLbl">Min</label>
+                  <input
+                    className="lp2-priceInp"
+                    inputMode="numeric"
+                    placeholder="e.g. 250000"
+                    value={priceMin}
+                    onChange={(e) => setPriceMin(e.target.value)}
+                  />
+                </div>
+
+                <div className="lp2-priceRow">
+                  <label className="lp2-priceLbl">Max</label>
+                  <input
+                    className="lp2-priceInp"
+                    inputMode="numeric"
+                    placeholder="e.g. 1500000"
+                    value={priceMax}
+                    onChange={(e) => setPriceMax(e.target.value)}
+                  />
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -524,6 +559,91 @@ function DrawerSelect({ value, onChange, options }) {
         ))}
       </select>
       <FaChevronDown className="lp2-dselChev" />
+    </div>
+  );
+}
+
+function PriceRangePill({ icon, min, max, onMin, onMax }) {
+  const [open, setOpen] = useState(false);
+
+  const label = (() => {
+    const a = String(min || "").trim();
+    const b = String(max || "").trim();
+    if (!a && !b) return "Price Range";
+    if (a && b) return `${a} - ${b}`;
+    if (a) return `From ${a}`;
+    return `Up to ${b}`;
+  })();
+
+  // close on outside click
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e) => {
+      const root = e.target.closest?.(".lp2-pillPrice");
+      if (!root) setOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [open]);
+
+  return (
+    <div className="lp2-pill lp2-pillPrice">
+      <span className="lp2-pillFa" aria-hidden="true">
+        {icon}
+      </span>
+
+      <button
+        type="button"
+        className="lp2-pillBtn"
+        onClick={() => setOpen((v) => !v)}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+      >
+        {label}
+      </button>
+
+      <FaChevronDown className={"lp2-pillChev" + (open ? " is-open" : "")} />
+
+      {open ? (
+        <div className="lp2-pricePop" role="dialog" aria-label="Price range">
+          <div className="lp2-priceRow">
+            <label className="lp2-priceLbl">Min</label>
+            <input
+              className="lp2-priceInp"
+              inputMode="numeric"
+              placeholder="e.g. 250000"
+              value={min}
+              onChange={(e) => onMin(e.target.value)}
+            />
+          </div>
+
+          <div className="lp2-priceRow">
+            <label className="lp2-priceLbl">Max</label>
+            <input
+              className="lp2-priceInp"
+              inputMode="numeric"
+              placeholder="e.g. 1500000"
+              value={max}
+              onChange={(e) => onMax(e.target.value)}
+            />
+          </div>
+
+          <div className="lp2-priceActions">
+            <button
+              type="button"
+              className="lp2-priceClear"
+              onClick={() => {
+                onMin("");
+                onMax("");
+              }}
+            >
+            </button>
+            <button type="button" className="lp2-priceOk" onClick={() => setOpen(false)}>
+              Apply
+            </button>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

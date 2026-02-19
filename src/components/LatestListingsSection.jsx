@@ -1,4 +1,3 @@
-// src/components/LatestListingsSection.jsx
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import "./latestListingsSection.css";
@@ -13,7 +12,25 @@ import {
 } from "react-icons/fa";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "/api";
-const PAGE_LIMIT = 12;
+const RANDOM_COUNT = 9;
+
+/* ================= helpers ================= */
+function shuffleArray(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function formatPrice(p) {
+  const cur = p.currency || "AED";
+  const n =
+    Number(p.startingPrice ?? p.price ?? p.priceFrom ?? 0) || 0;
+  if (!n) return "";
+  return `${cur} ${n.toLocaleString()}`;
+}
 
 // mode: "all" | "rent" | "sale"
 export default function LatestListingsSection({ mode = "all" }) {
@@ -26,7 +43,7 @@ export default function LatestListingsSection({ mode = "all" }) {
   const [ddOpen, setDdOpen] = useState(false);
   const ddRef = useRef(null);
 
-  // close on outside click + ESC
+  // close dropdown on outside click + ESC
   useEffect(() => {
     const onDown = (e) => {
       if (!ddRef.current) return;
@@ -58,18 +75,18 @@ export default function LatestListingsSection({ mode = "all" }) {
         ? "FOR SALE"
         : "LATEST LISTINGS";
 
-  // ✅ fetch from backend
+  /* ================= FETCH ================= */
   useEffect(() => {
     let alive = true;
 
     async function fetchType(listingType) {
       const qs = new URLSearchParams();
-      qs.set("listingType", listingType); // FOR_SALE / FOR_RENT
-      qs.set("limit", String(PAGE_LIMIT));
+      qs.set("listingType", listingType);
+      qs.set("limit", "200"); // fetch enough to randomize
 
       const res = await fetch(`${API_BASE}/public/listings?${qs.toString()}`);
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.error || `Failed to fetch ${listingType}`);
+      if (!res.ok) throw new Error(data?.error || "Fetch failed");
 
       const list = Array.isArray(data) ? data : data.items;
       return Array.isArray(list) ? list : [];
@@ -93,21 +110,42 @@ export default function LatestListingsSection({ mode = "all" }) {
           merged = [...sale, ...rent];
         }
 
-        // ✅ map backend -> UI shape (keep your UI EXACT)
-        const mapped = merged.map((p) => ({
+        // 🔀 RANDOM 9
+        const random9 = shuffleArray(merged).slice(0, RANDOM_COUNT);
+
+        // ✅ map backend → UI
+        const mapped = random9.map((p) => ({
           id: p.id,
-          brand: p.developer || p.developerName || "Listing",
+
+          name:
+            p.title ||
+            p.name ||
+            p.projectName ||
+            p.propertyName ||
+            p.listingTitle ||
+            "Property",
+
+          developer: p.developer || p.developerName || "",
+
           type: p.propertyTypeLabel || p.propertyType || "Property",
           status: p.listingType === "FOR_RENT" ? "For Rent" : "For Sale",
           price: p.priceLabel || formatPrice(p),
+
           location:
             p.location ||
             [p.country, p.city, p.area].filter(Boolean).join(", ") ||
             "-",
+
           beds: p.bedrooms ?? "-",
           baths: p.bathrooms ?? "-",
           parking: p.parking ?? "-",
-          area: p.sizeSqft ? `${p.sizeSqft} sq.ft` : p.sizeSqm ? `${p.sizeSqm} sqm` : "-",
+
+          area: p.sizeSqft
+            ? `${p.sizeSqft} sq.ft`
+            : p.sizeSqm
+              ? `${p.sizeSqm} sqm`
+              : "-",
+
           img: p.mainImageUrl || p.coverImageUrl || "",
         }));
 
@@ -148,13 +186,11 @@ export default function LatestListingsSection({ mode = "all" }) {
             </button>
 
             <div className="ll-menu" role="menu" aria-hidden={!ddOpen}>
-              <button className="ll-menuItem" type="button" onClick={() => onPick("For Rent")}>
+              <button className="ll-menuItem" onClick={() => onPick("For Rent")}>
                 For Rent
               </button>
-
               <div className="ll-menuDivider" />
-
-              <button className="ll-menuItem" type="button" onClick={() => onPick("For Sale")}>
+              <button className="ll-menuItem" onClick={() => onPick("For Sale")}>
                 For Sale
               </button>
             </div>
@@ -176,22 +212,8 @@ function CardsSkeleton() {
           <div className="ll-media" style={{ background: "#eee", height: 230 }} />
           <div className="ll-body">
             <div style={{ height: 18, width: "55%", background: "#eee", borderRadius: 6 }} />
-            <div
-              style={{
-                height: 12,
-                width: "85%",
-                background: "#f0f0f0",
-                borderRadius: 6,
-                marginTop: 10,
-              }}
-            />
+            <div style={{ height: 12, width: "85%", background: "#f0f0f0", borderRadius: 6, marginTop: 10 }} />
             <div style={{ height: 1, width: "100%", background: "#eee", margin: "14px 0" }} />
-            <div style={{ display: "flex", gap: 10 }}>
-              <div style={{ height: 14, width: 40, background: "#eee", borderRadius: 6 }} />
-              <div style={{ height: 14, width: 40, background: "#eee", borderRadius: 6 }} />
-              <div style={{ height: 14, width: 40, background: "#eee", borderRadius: 6 }} />
-              <div style={{ height: 14, width: 70, background: "#eee", borderRadius: 6 }} />
-            </div>
           </div>
         </div>
       ))}
@@ -199,7 +221,7 @@ function CardsSkeleton() {
   );
 }
 
-/* ================= CARDS CAROUSEL (SWIPE / SCROLL) ================= */
+/* ================= CARDS CAROUSEL ================= */
 function CardsCarousel({ items }) {
   const viewportRef = useRef(null);
   const [index, setIndex] = useState(0);
@@ -213,7 +235,6 @@ function CardsCarousel({ items }) {
 
     const cardW = card.getBoundingClientRect().width;
     const vpW = el.getBoundingClientRect().width;
-
     return Math.max(1, Math.round(vpW / cardW));
   };
 
@@ -233,10 +254,8 @@ function CardsCarousel({ items }) {
     const card = el.querySelector(".ll-card");
     if (!card) return;
 
-    const cardW = card.getBoundingClientRect().width;
-    const gap = 26; // must match CSS gap
-    const step = cardW + gap;
-
+    const gap = 26;
+    const step = card.getBoundingClientRect().width + gap;
     const nextIndex = Math.round(el.scrollLeft / step);
     setIndex(Math.max(0, Math.min(maxIndex, nextIndex)));
   };
@@ -246,30 +265,22 @@ function CardsCarousel({ items }) {
       <div className="ll-scroll" ref={viewportRef} onScroll={onScroll}>
         {items.map((x) => (
           <Link
-            className="ll-card"
             key={x.id}
+            className="ll-card"
             to={`/listing/${x.id}`}
             onClick={() => window.scrollTo(0, 0)}
-            aria-label={`Open listing: ${x.location}`}
           >
             <div className="ll-media">
-              {x.img ? (
-                <img className="ll-img" src={x.img} alt={x.location} />
-              ) : (
-                <div className="ll-img" style={{ background: "#eee" }} />
-              )}
-
-              {/* ✅ keep tags, remove watermark + image dots */}
+              {x.img ? <img className="ll-img" src={x.img} alt={x.name} /> : <div className="ll-img" style={{ background: "#eee" }} />}
               <div className="ll-tags">
-                <span className="ll-tag ll-tag--black">{x.brand}</span>
-                <span className="ll-tag ll-tag--light">{x.type}</span>
+                <span className="ll-tag ll-tag--black">{x.name}</span>
+                {x.developer && <span className="ll-tag ll-tag--light">{x.developer}</span>}
                 <span className="ll-tag ll-tag--gray">{x.status}</span>
               </div>
             </div>
 
             <div className="ll-body">
               <div className="ll-price">{x.price}</div>
-
               <div className="ll-loc">
                 <FaMapMarkerAlt className="ll-pin" />
                 <span>{x.location}</span>
@@ -278,21 +289,11 @@ function CardsCarousel({ items }) {
               <div className="ll-line" />
 
               <div className="ll-specs">
-                <div className="ll-spec">
-                  <FaBed className="ll-ico" />
-                  <span>{x.beds}</span>
-                </div>
-                <div className="ll-spec">
-                  <FaBath className="ll-ico" />
-                  <span>{x.baths}</span>
-                </div>
-                <div className="ll-spec">
-                  <FaCar className="ll-ico" />
-                  <span>{x.parking}</span>
-                </div>
+                <div className="ll-spec"><FaBed /> {x.beds}</div>
+                <div className="ll-spec"><FaBath /> {x.baths}</div>
+                <div className="ll-spec"><FaCar /> {x.parking}</div>
                 <div className="ll-spec ll-spec--area">
-                  <FaRulerCombined className="ll-ico" />
-                  <span>{x.area}</span>
+                  <FaRulerCombined /> {x.area}
                 </div>
               </div>
             </div>
@@ -301,7 +302,7 @@ function CardsCarousel({ items }) {
       </div>
 
       {maxIndex > 0 && (
-        <div className="ll-section-dots" aria-hidden="true">
+        <div className="ll-section-dots">
           {Array.from({ length: maxIndex + 1 }).map((_, i) => (
             <span key={i} className={"ll-section-dot" + (i === index ? " is-active" : "")} />
           ))}
@@ -309,15 +310,4 @@ function CardsCarousel({ items }) {
       )}
     </>
   );
-}
-
-/* ================= helpers ================= */
-function formatPrice(p) {
-  // prefer startingPrice/price + currency if available
-  const cur = p.currency || "AED";
-  const n =
-    Number(p.startingPrice ?? p.price ?? p.priceFrom ?? 0) || 0;
-
-  if (!n) return "";
-  return `${cur} ${n.toLocaleString()}`;
 }

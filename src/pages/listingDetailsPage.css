@@ -214,6 +214,75 @@
     opacity: 0.92;
 }
 
+/* ===== Brochure + icon actions row ===== */
+.ld-actionsRow {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 14px;
+    flex-wrap: wrap;
+    margin: 0 0 34px;
+}
+
+.ld-actionsRow .ld-btn {
+    margin-bottom: 0;
+}
+
+.ld-actionsIcons {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.ld-ico-btn {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    border: 1px solid rgba(15, 23, 42, 0.12);
+    background: #ffffff;
+    color: #111827;
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    cursor: pointer;
+    padding: 0;
+    line-height: 0;
+
+    transition: transform 120ms ease, box-shadow 120ms ease, background 120ms ease, border-color 120ms ease;
+}
+
+.ld-ico {
+    font-size: 18px;
+}
+
+.ld-ico-btn:hover {
+    background: #f8fafc;
+    border-color: rgba(15, 23, 42, 0.18);
+    box-shadow: 0 6px 18px rgba(17, 24, 39, 0.08);
+    transform: translateY(-1px);
+}
+
+.ld-ico-btn:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 4px rgba(17, 24, 39, 0.10), 0 6px 18px rgba(17, 24, 39, 0.08);
+}
+
+.ld-ico-btn:active {
+    transform: translateY(0px);
+    box-shadow: 0 3px 10px rgba(17, 24, 39, 0.06);
+}
+
+.ld-ico-btn.is-disabled,
+.ld-ico-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    box-shadow: none;
+    transform: none;
+}
+
+/* ===== SECTIONS ===== */
 .ld-section {
     margin-top: 34px;
 }
@@ -278,14 +347,54 @@
     display: block;
 }
 
-/* ===== RIGHT CARD (STICKY) ===== */
-.ld-right {
-    position: sticky;
-    top: 92px;
-    /* adjust if your header is taller */
-    align-self: start;
+/* ===== FACTS ===== */
+.ld-facts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 14px 0 6px;
 }
 
+.ld-fact {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border: 1px solid rgba(17, 24, 39, 0.12);
+    border-radius: 12px;
+    background: #fff;
+}
+
+.ld-factIcon {
+    font-size: 16px;
+    opacity: 0.9;
+}
+
+.ld-factVal {
+    font-weight: 700;
+    font-size: 14px;
+    color: #111827;
+    line-height: 1;
+}
+
+/* ===== RIGHT CARD + STICKY (FIX) ===== */
+.ld-right {
+    align-self: start;
+    /* important in grid */
+}
+
+/* Sticky wrapper that actually sticks */
+.ld-rightSticky {
+    position: -webkit-sticky;
+    position: sticky;
+    top: 110px;
+    /* adjust to header height */
+    height: fit-content;
+    /* key for grid */
+    z-index: 5;
+}
+
+/* Card */
 .ld-card {
     background: #f7f9fc;
     border: 1px solid rgba(15, 23, 42, 0.06);
@@ -453,8 +562,10 @@
         grid-template-columns: 1fr;
     }
 
-    .ld-right {
+    /* stop sticky on smaller screens */
+    .ld-rightSticky {
         position: static;
+        top: auto;
     }
 }
 
@@ -478,6 +589,13 @@
     }
 }
 
+@media (max-width: 640px) {
+    .ld-fact {
+        width: 100%;
+        justify-content: flex-start;
+    }
+}
+
 @media (max-width: 560px) {
     .ld-inner {
         padding: 0 16px;
@@ -498,50 +616,5 @@
     .ld-title {
         font-size: 34px;
         line-height: 42px;
-    }
-}
-
-/* ADD THESE to src/pages/listingDetailsPage.css (or merge with your file) */
-
-.ld-facts {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    margin: 14px 0 6px;
-}
-
-.ld-fact {
-    display: inline-flex;
-    align-items: center;
-    gap: 10px;
-    padding: 10px 12px;
-    border: 1px solid rgba(17, 24, 39, 0.12);
-    border-radius: 12px;
-    background: #fff;
-}
-
-.ld-factIcon {
-    font-size: 16px;
-    opacity: 0.9;
-}
-
-.ld-factVal {
-    font-weight: 700;
-    font-size: 14px;
-    color: #111827;
-    line-height: 1;
-}
-
-.ld-factKey {
-    font-size: 12px;
-    color: rgb(107, 114, 128);
-    line-height: 1;
-}
-
-/* mobile */
-@media (max-width: 640px) {
-    .ld-fact {
-        width: 100%;
-        justify-content: flex-start;
     }
 }

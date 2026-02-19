@@ -1,18 +1,15 @@
-// src/pages/ListingsPage.jsx
+// src/pages/OffPlanPage.jsx
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import "./listingsPage.css";
+import "./offPlanPage.css";
 
 import {
-  FaBed,
-  FaBath,
-  FaCar,
-  FaRulerCombined,
+  FaMapMarkerAlt,
   FaChevronDown,
   FaSlidersH,
   FaTimes,
-  FaHome,
   FaTag,
+  FaStar,
 } from "react-icons/fa";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:4000/api";
@@ -38,6 +35,13 @@ function xNumSafe(v) {
   return Number.isFinite(n) ? n : 0;
 }
 
+function parseMoneyInput(v) {
+  const s = String(v ?? "").trim();
+  if (!s) return { n: NaN, has: false };
+  const n = Number(s.replace(/,/g, ""));
+  return { n, has: Number.isFinite(n) && n > 0 };
+}
+
 function formatPrice(p) {
   const n = p?.priceFrom ?? p?.startingPrice ?? null;
   if (n == null || n === "") return "Price on request";
@@ -46,59 +50,46 @@ function formatPrice(p) {
   return `From ${p?.currency || "USD"} ${num.toLocaleString()}`;
 }
 
-function areaLabel(p) {
-  if (p?.sizeSqm != null && p.sizeSqm !== "") {
-    const n = Number(p.sizeSqm);
-    if (!Number.isNaN(n) && n > 0) return `${n.toLocaleString()} m²`;
-  }
-  if (p?.sizeSqft != null && p.sizeSqft !== "") {
-    const n = Number(p.sizeSqft);
-    if (!Number.isNaN(n) && n > 0) return `${n.toLocaleString()} sq.ft`;
-  }
-  return "-";
+function titleLabel(p) {
+  return (
+    p?.title ||
+    p?.name ||
+    p?.projectName ||
+    p?.developer ||
+    "Off-Plan Project"
+  );
 }
 
-function typeLabel(p) {
-  return p?.propertyType || "Property";
+function handoverLabel(p) {
+  const v =
+    p?.handover ||
+    p?.handoverDate ||
+    p?.handoverYear ||
+    p?.completion ||
+    p?.completionDate ||
+    "";
+  if (!v) return "";
+  return String(v);
 }
 
-function statusLabel(p) {
-  if (p?.listingType === "FOR_RENT") return "For Rent";
-  if (p?.listingType === "FOR_SALE") return "For Sale";
-  if (p?.listingType === "OFF_PLAN") return "Off-Plan";
-  return "Listing";
-}
-
-export default function ListingsPage() {
+export default function OffPlanPage() {
   const loc = useLocation();
   const q = useQuery();
 
   const country = (q.get("country") || "").trim().toLowerCase();
   const countryLabel = country ? COUNTRY_LABELS[country] || country : "";
 
-  // /rent => FOR_RENT, /sale => FOR_SALE, otherwise all
-  const listingType = useMemo(() => {
-    if (loc.pathname === "/rent") return "FOR_RENT";
-    if (loc.pathname === "/sale") return "FOR_SALE";
-    return null;
-  }, [loc.pathname]);
+  // ✅ Off-plan ONLY
+  const listingType = "OFF_PLAN";
 
-  const pageTitle = useMemo(() => {
-    const base =
-      listingType === "FOR_RENT"
-        ? "FOR RENT"
-        : listingType === "FOR_SALE"
-          ? "FOR SALE"
-          : "LISTINGS";
-    return base;
-  }, [listingType]);
-
-  // ✅ Filters (no location filter anymore)
-  const [typeFilter, setTypeFilter] = useState("Type");
-  const [priceFilter, setPriceFilter] = useState("Price Range");
-  const [sort, setSort] = useState("Price: Low to High"); // ✅ default
-  const [filtersOpen, setFiltersOpen] = useState(false);
+  // ✅ Filters (NO TYPE)
+  const [locationFilter, setLocationFilter] = useState("Any location");
+  const [priceMin, setPriceMin] = useState("");
+  const [priceMax, setPriceMax] = useState("");
   const [developer, setDeveloper] = useState("Any developer");
+
+  const [sort, setSort] = useState("Price: Low to High");
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   // ✅ DATA
   const [rawItems, setRawItems] = useState([]);
@@ -121,7 +112,7 @@ export default function ListingsPage() {
     };
   }, [filtersOpen]);
 
-  // ✅ Fetch listings from public endpoint
+  // ✅ Fetch offplan listings
   useEffect(() => {
     let alive = true;
 
@@ -131,16 +122,22 @@ export default function ListingsPage() {
         setErr("");
 
         const url = new URL(`${API_BASE}/public/listings`);
-        url.searchParams.set("limit", "100");
+        url.searchParams.set("limit", "200");
         if (country) url.searchParams.set("country", country);
-        if (listingType) url.searchParams.set("listingType", listingType);
 
+        // force OFF_PLAN always
+        url.searchParams.set("listingType", listingType);
+
+        // If someone passes listingType in query param, ignore unless it's OFF_PLAN
         const qpListingType = (q.get("listingType") || "").trim();
-        if (qpListingType) url.searchParams.set("listingType", qpListingType);
+        if (qpListingType && qpListingType === "OFF_PLAN") {
+          url.searchParams.set("listingType", "OFF_PLAN");
+        }
 
         const res = await fetch(url.toString());
         const data = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(data?.error || "Failed to load listings");
+        if (!res.ok)
+          throw new Error(data?.error || "Failed to load off-plan listings");
         if (!alive) return;
 
         const list = Array.isArray(data) ? data : data.items;
@@ -148,7 +145,7 @@ export default function ListingsPage() {
       } catch (e) {
         if (!alive) return;
         setRawItems([]);
-        setErr(e.message || "Failed to load listings");
+        setErr(e.message || "Failed to load off-plan listings");
       } finally {
         if (alive) setLoading(false);
       }
@@ -158,16 +155,16 @@ export default function ListingsPage() {
       alive = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [country, listingType, loc.search]);
+  }, [country, loc.search]);
 
   // dropdown options from data
-  const typeOptions = useMemo(() => {
+  const locationOptions = useMemo(() => {
     const set = new Set();
     rawItems.forEach((p) => {
-      const v = (p?.propertyType || "").trim();
+      const v = (p?.location || p?.community || p?.area || "").trim();
       if (v) set.add(v);
     });
-    return ["Type", ...Array.from(set).sort((a, b) => a.localeCompare(b))];
+    return ["Any location", ...Array.from(set).sort((a, b) => a.localeCompare(b))];
   }, [rawItems]);
 
   const developerOptions = useMemo(() => {
@@ -179,44 +176,49 @@ export default function ListingsPage() {
     return ["Any developer", ...Array.from(set).sort((a, b) => a.localeCompare(b))];
   }, [rawItems]);
 
-  // ✅ Filter + sort (no location filtering anymore)
+  // ✅ Filter + sort
   const filteredRaw = useMemo(() => {
     let list = [...rawItems];
 
-    // type
-    if (typeFilter !== "Type") {
-      list = list.filter(
-        (p) =>
-          String(p?.propertyType || "")
-            .trim()
-            .toLowerCase() === typeFilter.toLowerCase()
-      );
+    // enforce OFF_PLAN again (safety)
+    list = list.filter(
+      (p) => String(p?.listingType || "").toUpperCase() === "OFF_PLAN"
+    );
+
+    // location
+    if (locationFilter !== "Any location") {
+      const want = locationFilter.trim().toLowerCase();
+      list = list.filter((p) => {
+        const v = String(p?.location || p?.community || p?.area || "")
+          .trim()
+          .toLowerCase();
+        return v === want;
+      });
     }
 
     // developer
     if (developer !== "Any developer") {
+      const want = developer.trim().toLowerCase();
       list = list.filter((p) => {
-        const d = String(p?.developer || p?.developerName || "")
+        const v = String(p?.developer || p?.developerName || "")
           .trim()
           .toLowerCase();
-        return d === developer.toLowerCase();
+        return v === want;
       });
     }
 
-    // price range
-    if (priceFilter !== "Price Range") {
-      const inRange = (n) => {
-        if (!Number.isFinite(n) || n <= 0) return false;
-        if (priceFilter === "Under 1M") return n < 1_000_000;
-        if (priceFilter === "1M - 3M") return n >= 1_000_000 && n <= 3_000_000;
-        if (priceFilter === "3M - 7M") return n >= 3_000_000 && n <= 7_000_000;
-        if (priceFilter === "7M+") return n >= 7_000_000;
-        return true;
-      };
+    // typed price min/max
+    const { n: min, has: hasMin } = parseMoneyInput(priceMin);
+    const { n: max, has: hasMax } = parseMoneyInput(priceMax);
 
-      list = list.filter((p) =>
-        inRange(xNumSafe(p?.priceFrom ?? p?.startingPrice))
-      );
+    if (hasMin || hasMax) {
+      list = list.filter((p) => {
+        const n = xNumSafe(p?.priceFrom ?? p?.startingPrice);
+        if (!Number.isFinite(n) || n <= 0) return false;
+        if (hasMin && n < min) return false;
+        if (hasMax && n > max) return false;
+        return true;
+      });
     }
 
     // sort
@@ -235,180 +237,197 @@ export default function ListingsPage() {
     }
 
     return list;
-  }, [rawItems, typeFilter, developer, priceFilter, sort]);
+  }, [rawItems, locationFilter, developer, priceMin, priceMax, sort]);
 
-  // Map to card shape (no map icon)
-  const items = useMemo(() => {
-    return filteredRaw.map((p) => ({
-      id: p.id,
-      brand: p.developer || p.developerName || "Listing",
-      type: typeLabel(p),
-      status: statusLabel(p),
-      price: formatPrice(p),
-      location: p.location || "-", // keep text, no pin icon
-      beds: p.bedrooms ?? "-",
-      baths: p.bathrooms ?? "-",
-      parking: p.parking ?? "-",
-      area: areaLabel(p),
-      img: p.mainImageUrl || "",
-    }));
-  }, [filteredRaw]);
-
-  // reset filters when switching base route/country
+  // reset when country changes
   useEffect(() => {
-    setTypeFilter("Type");
-    setPriceFilter("Price Range");
+    setLocationFilter("Any location");
+    setPriceMin("");
+    setPriceMax("");
     setDeveloper("Any developer");
-    setSort("Price: Low to High"); // ✅ default
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [listingType, country]);
+    setSort("Price: Low to High");
+  }, [country]);
 
   const clearAll = () => {
-    setTypeFilter("Type");
-    setPriceFilter("Price Range");
+    setLocationFilter("Any location");
+    setPriceMin("");
+    setPriceMax("");
     setDeveloper("Any developer");
   };
 
-  const applyFilters = () => setFiltersOpen(false);
-
   return (
-    <main className="lp2">
-      <div className="lp2-inner">
-        {/* title */}
-        <div className="lp2-top">
-          <h1 className="lp2-title">
-            {pageTitle}{" "}
-            {countryLabel ? <span className="lp2-sub">— {countryLabel}</span> : null}
-          </h1>
+    <main className="op">
+      <div className="op-inner">
+        {/* breadcrumb (optional) */}
+        <div className="op-bc">
+          <span className="op-bc-strong">Aouad Real Estate</span>
+          <span className="op-bc-sep">›</span>
+          <span className="op-bc-muted">Off-Plan</span>
+          {countryLabel ? (
+            <>
+              <span className="op-bc-sep">›</span>
+              <span className="op-bc-muted">{countryLabel}</span>
+            </>
+          ) : null}
         </div>
 
-        {/* filters row (no location pill) */}
-        <div className="lp2-filters">
+        {/* filters row — Location + Price + More */}
+        <div className="op-filters">
           <SelectPill
-            icon={<FaHome />}
-            value={typeFilter}
-            onChange={setTypeFilter}
-            options={typeOptions}
+            icon={<FaMapMarkerAlt />}
+            value={locationFilter}
+            onChange={setLocationFilter}
+            options={locationOptions}
           />
 
-          <SelectPill
+          <PriceRangePill
             icon={<FaTag />}
-            value={priceFilter}
-            onChange={setPriceFilter}
-            options={["Price Range", "Under 1M", "1M - 3M", "3M - 7M", "7M+"]}
+            min={priceMin}
+            max={priceMax}
+            onMin={setPriceMin}
+            onMax={setPriceMax}
           />
 
-          <button className="lp2-more" type="button" onClick={() => setFiltersOpen(true)}>
+          <button
+            className="op-more"
+            type="button"
+            onClick={() => setFiltersOpen(true)}
+          >
             More Filters <FaSlidersH />
           </button>
         </div>
 
         {/* results row */}
-        <div className="lp2-row">
-          <div className="lp2-count">
-            {loading ? "Loading..." : err ? err : `Showing ${items.length} results`}
+        <div className="op-row">
+          <div className="op-count">
+            {loading ? "Loading..." : err ? err : `Showing ${filteredRaw.length} results`}
           </div>
 
-          <div className="lp2-actions">
-            <div className="lp2-sortPill">
-              <span className="lp2-sortIcon">⇅</span>
+          <div className="op-actions">
+            <div className="op-sortPill">
+              <span className="op-sortIcon">⇅</span>
               <select
-                className="lp2-sortSel"
+                className="op-sortSel"
                 value={sort}
                 onChange={(e) => setSort(e.target.value)}
               >
                 <option>Price: Low to High</option>
                 <option>Price: High to Low</option>
               </select>
-              <FaChevronDown className="lp2-sortChev" />
+              <FaChevronDown className="op-sortChev" />
             </div>
           </div>
         </div>
 
         {/* grid */}
         {loading ? (
-          <div className="lp2-empty">Loading…</div>
+          <div className="op-empty">Loading…</div>
         ) : err ? (
-          <div className="lp2-empty">{err}</div>
-        ) : items.length === 0 ? (
-          <div className="lp2-empty">No listings found.</div>
+          <div className="op-empty">{err}</div>
+        ) : filteredRaw.length === 0 ? (
+          <div className="op-empty">No off-plan projects found.</div>
         ) : (
-          <div className="lp2-grid">
-            {items.map((x) => (
-              <Link
-                className="ll-card"
-                key={x.id}
-                to={`/listing/${x.id}`}
-                onClick={() => window.scrollTo(0, 0)}
-                aria-label={`Open listing: ${x.location}`}
-              >
-                <div className="ll-media">
-                  {x.img ? (
-                    <img
-                      className="ll-img"
-                      src={x.img}
-                      alt={x.location}
-                      onError={(e) => {
-                        e.currentTarget.src = "/placeholder-listing.jpg";
-                      }}
-                    />
-                  ) : (
-                    <div className="ll-img" style={{ background: "#eee" }} />
-                  )}
+          <div className="op-grid">
+            {filteredRaw.map((p) => {
+              const dev = p?.developer || p?.developerName || "Developer";
+              const locText = p?.location || p?.community || p?.area || "-";
+              const handover = handoverLabel(p);
 
-                  <div className="ll-tags">
-                    <span className="ll-tag ll-tag--black">{x.brand}</span>
-                    <span className="ll-tag ll-tag--light">{x.type}</span>
-                    <span className="ll-tag ll-tag--gray">{x.status}</span>
-                  </div>
-                </div>
+              return (
+                <Link
+                  key={p.id}
+                  className="op-card"
+                  to={`/listing/${p.id}`}
+                  onClick={() => window.scrollTo(0, 0)}
+                  aria-label={`Open off-plan: ${titleLabel(p)}`}
+                >
+                  <div className="op-media">
+                    {p?.mainImageUrl ? (
+                      <img
+                        className="op-img"
+                        src={p.mainImageUrl}
+                        alt={titleLabel(p)}
+                        onError={(e) => {
+                          e.currentTarget.src = "/placeholder-listing.jpg";
+                        }}
+                      />
+                    ) : (
+                      <div
+                        className="op-img"
+                        style={{ background: "rgba(15,23,42,0.08)" }}
+                      />
+                    )}
 
-                <div className="ll-body">
-                  <div className="ll-price">{x.price}</div>
+                    <div className="op-badges">
+                      <span className="op-badge op-badge--featured">
+                        <FaStar className="op-star" /> Featured
+                      </span>
 
-                  {/* ✅ no map icon */}
-                  <div className="ll-loc">
-                    <span>{x.location}</span>
-                  </div>
+                      {handover ? (
+                        <span className="op-badge op-badge--handover">
+                          Handover {handover}
+                        </span>
+                      ) : null}
 
-                  <div className="ll-line" />
-
-                  <div className="ll-specs">
-                    <div className="ll-spec">
-                      <FaBed className="ll-ico" />
-                      <span>{x.beds}</span>
-                    </div>
-                    <div className="ll-spec">
-                      <FaBath className="ll-ico" />
-                      <span>{x.baths}</span>
-                    </div>
-                    <div className="ll-spec">
-                      <FaCar className="ll-ico" />
-                      <span>{x.parking}</span>
-                    </div>
-                    <div className="ll-spec ll-spec--area">
-                      <FaRulerCombined className="ll-ico" />
-                      <span>{x.area}</span>
+                      <span className="op-badge op-badge--dev">{dev}</span>
                     </div>
                   </div>
-                </div>
-              </Link>
-            ))}
+
+                  <div className="op-body">
+                    <div className="op-title">{titleLabel(p)}</div>
+
+                    <div className="op-meta">
+                      <div className="op-meta-row">
+                        <FaMapMarkerAlt className="op-mini" />
+                        <span>{locText}</span>
+                      </div>
+                    </div>
+
+                    <div className="op-divider" />
+
+                    <div className="op-bottom">
+                      <div className="op-price">{formatPrice(p)}</div>
+                      <div className="op-ctas">
+                        <button
+                          className="op-ico"
+                          type="button"
+                          aria-label="CTA 1"
+                          onClick={(e) => e.preventDefault()}
+                        >
+                          <span style={{ fontWeight: 700 }}>i</span>
+                        </button>
+                        <button
+                          className="op-ico"
+                          type="button"
+                          aria-label="CTA 2"
+                          onClick={(e) => e.preventDefault()}
+                        >
+                          <span style={{ fontWeight: 700 }}>↗</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </Link>
+              );
+            })}
           </div>
         )}
       </div>
 
       {/* DRAWER */}
       <div
-        className={"lp2-dim" + (filtersOpen ? " is-open" : "")}
+        className={"op-dim" + (filtersOpen ? " is-open" : "")}
         onClick={() => setFiltersOpen(false)}
       />
 
-      <aside className={"lp2-drawer" + (filtersOpen ? " is-open" : "")} aria-hidden={!filtersOpen}>
-        <div className="lp2-drawerTop">
-          <h3 className="lp2-drawerTitle">All filters</h3>
+      <aside
+        className={"op-drawer" + (filtersOpen ? " is-open" : "")}
+        aria-hidden={!filtersOpen}
+      >
+        <div className="op-drawerTop">
+          <h3 className="op-drawerTitle">All filters</h3>
           <button
-            className="lp2-x"
+            className="op-x"
             type="button"
             aria-label="Close"
             onClick={() => setFiltersOpen(false)}
@@ -417,34 +436,64 @@ export default function ListingsPage() {
           </button>
         </div>
 
-        <div className="lp2-drawerBody">
-          <div className="lp2-dgrid">
-            <div className="lp2-field">
-              <div className="lp2-lbl">Development Type</div>
-              <DrawerSelect value={typeFilter} onChange={setTypeFilter} options={typeOptions} />
-            </div>
-
-            <div className="lp2-field">
-              <div className="lp2-lbl">Choose a developer</div>
-              <DrawerSelect value={developer} onChange={setDeveloper} options={developerOptions} />
-            </div>
-
-            <div className="lp2-field">
-              <div className="lp2-lbl">Price Range</div>
+        <div className="op-drawerBody">
+          <div className="op-dgrid">
+            <div className="op-field">
+              <div className="op-lbl">Choose a community</div>
               <DrawerSelect
-                value={priceFilter}
-                onChange={setPriceFilter}
-                options={["Price Range", "Under 1M", "1M - 3M", "3M - 7M", "7M+"]}
+                value={locationFilter}
+                onChange={setLocationFilter}
+                options={locationOptions}
               />
+            </div>
+
+            <div className="op-field">
+              <div className="op-lbl">Choose a developer</div>
+              <DrawerSelect
+                value={developer}
+                onChange={setDeveloper}
+                options={developerOptions}
+              />
+            </div>
+
+            <div className="op-field">
+              <div className="op-lbl">Price Range</div>
+              <div className="op-priceDrawer">
+                <div className="op-priceRow">
+                  <label className="op-priceLbl">Min</label>
+                  <input
+                    className="op-priceInp"
+                    inputMode="numeric"
+                    placeholder="e.g. 250000"
+                    value={priceMin}
+                    onChange={(e) => setPriceMin(e.target.value)}
+                  />
+                </div>
+
+                <div className="op-priceRow">
+                  <label className="op-priceLbl">Max</label>
+                  <input
+                    className="op-priceInp"
+                    inputMode="numeric"
+                    placeholder="e.g. 1500000"
+                    value={priceMax}
+                    onChange={(e) => setPriceMax(e.target.value)}
+                  />
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="lp2-drawerBottom">
-          <button className="lp2-clear" type="button" onClick={clearAll}>
+        <div className="op-drawerBottom">
+          <button className="op-clear" type="button" onClick={clearAll}>
             Clear all
           </button>
-          <button className="lp2-apply" type="button" onClick={applyFilters}>
+          <button
+            className="op-apply"
+            type="button"
+            onClick={() => setFiltersOpen(false)}
+          >
             Filter properties
           </button>
         </div>
@@ -455,12 +504,16 @@ export default function ListingsPage() {
 
 function SelectPill({ icon, value, onChange, options }) {
   return (
-    <div className="lp2-pill">
-      <span className="lp2-pillFa" aria-hidden="true">
+    <div className="op-pill">
+      <span className="op-pillFa" aria-hidden="true">
         {icon}
       </span>
 
-      <select className="lp2-pillSel" value={value} onChange={(e) => onChange(e.target.value)}>
+      <select
+        className="op-pillSel"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      >
         {options.map((o) => (
           <option key={o} value={o}>
             {o}
@@ -468,22 +521,115 @@ function SelectPill({ icon, value, onChange, options }) {
         ))}
       </select>
 
-      <FaChevronDown className="lp2-pillChev" />
+      <FaChevronDown className="op-pillChev" />
     </div>
   );
 }
 
 function DrawerSelect({ value, onChange, options }) {
   return (
-    <div className="lp2-dselWrap">
-      <select className="lp2-dsel" value={value} onChange={(e) => onChange(e.target.value)}>
+    <div className="op-dselWrap">
+      <select
+        className="op-dsel"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      >
         {options.map((o) => (
           <option key={o} value={o}>
             {o}
           </option>
         ))}
       </select>
-      <FaChevronDown className="lp2-dselChev" />
+      <FaChevronDown className="op-dselChev" />
+    </div>
+  );
+}
+
+function PriceRangePill({ icon, min, max, onMin, onMax }) {
+  const [open, setOpen] = useState(false);
+
+  const label = (() => {
+    const a = String(min || "").trim();
+    const b = String(max || "").trim();
+    if (!a && !b) return "Price Range";
+    if (a && b) return `${a} - ${b}`;
+    if (a) return `From ${a}`;
+    return `Up to ${b}`;
+  })();
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e) => {
+      const root = e.target.closest?.(".op-pillPrice");
+      if (!root) setOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [open]);
+
+  return (
+    <div className="op-pill op-pillPrice">
+      <span className="op-pillFa" aria-hidden="true">
+        {icon}
+      </span>
+
+      <button
+        type="button"
+        className="op-pillBtn"
+        onClick={() => setOpen((v) => !v)}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+      >
+        {label}
+      </button>
+
+      <FaChevronDown className={"op-pillChev" + (open ? " is-open" : "")} />
+
+      {open ? (
+        <div className="op-pricePop" role="dialog" aria-label="Price range">
+          <div className="op-priceRow">
+            <label className="op-priceLbl">Min</label>
+            <input
+              className="op-priceInp"
+              inputMode="numeric"
+              placeholder="e.g. 250000"
+              value={min}
+              onChange={(e) => onMin(e.target.value)}
+            />
+          </div>
+
+          <div className="op-priceRow">
+            <label className="op-priceLbl">Max</label>
+            <input
+              className="op-priceInp"
+              inputMode="numeric"
+              placeholder="e.g. 1500000"
+              value={max}
+              onChange={(e) => onMax(e.target.value)}
+            />
+          </div>
+
+          <div className="op-priceActions">
+            <button
+              type="button"
+              className="op-priceClear"
+              onClick={() => {
+                onMin("");
+                onMax("");
+              }}
+            >
+              Clear
+            </button>
+            <button
+              type="button"
+              className="op-priceOk"
+              onClick={() => setOpen(false)}
+            >
+              Apply
+            </button>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -1,7 +1,7 @@
 // src/pages/ListingDetailsPage.jsx
 import { useEffect, useMemo, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { FaCamera } from "react-icons/fa";
+import { FaCamera, FaWhatsapp, FaCalendarAlt } from "react-icons/fa";
 import { FaBed, FaBath, FaCar, FaRulerCombined } from "react-icons/fa";
 import { MapContainer, TileLayer, Marker } from "react-leaflet";
 import L from "leaflet";
@@ -58,19 +58,23 @@ export default function ListingDetailsPage() {
 
         // Images
         mainImageUrl:
-          raw.mainImageUrl || raw.coverImageUrl || raw.heroImageUrl || raw.imageUrl || "",
+          raw.mainImageUrl ||
+          raw.coverImageUrl ||
+          raw.heroImageUrl ||
+          raw.imageUrl ||
+          "",
 
-        images:
-          Array.isArray(raw.images)
-            ? raw.images
-            : Array.isArray(raw.gallery)
-              ? raw.gallery
-              : Array.isArray(raw.media)
-                ? raw.media
-                : [],
+        images: Array.isArray(raw.images)
+          ? raw.images
+          : Array.isArray(raw.gallery)
+            ? raw.gallery
+            : Array.isArray(raw.media)
+              ? raw.media
+              : [],
 
         // Developer/name fields
-        developerName: raw.developerName || raw.developer || raw.developer_name || "",
+        developerName:
+          raw.developerName || raw.developer || raw.developer_name || "",
 
         // Location labels
         locationLabel:
@@ -81,7 +85,8 @@ export default function ListingDetailsPage() {
           [raw.country, raw.city, raw.area].filter(Boolean).join(", "),
 
         // Pricing
-        startingPrice: raw.startingPrice ?? raw.priceFrom ?? raw.price ?? raw.starting_price,
+        startingPrice:
+          raw.startingPrice ?? raw.priceFrom ?? raw.price ?? raw.starting_price,
 
         // Misc
         paymentPlan: raw.paymentPlan || raw.payment_plan || raw.plan || "",
@@ -255,7 +260,9 @@ export default function ListingDetailsPage() {
             <span className="ld-crumb ld-crumb--active">Error</span>
           </nav>
 
-          <div style={{ padding: 16, border: "1px solid #eee", borderRadius: 12 }}>{err}</div>
+          <div style={{ padding: 16, border: "1px solid #eee", borderRadius: 12 }}>
+            {err}
+          </div>
         </div>
       </section>
     );
@@ -269,6 +276,29 @@ export default function ListingDetailsPage() {
   const agentPhoto = item.agent?.photoUrl || "https://via.placeholder.com/64x64?text=Agent";
 
   const sizeLabel = formatSize(item);
+
+  // ✅ same behavior as LatestOffPlanSection
+  const agentId = pickAgentId(item);
+  const listingId = item?.id || id || "";
+  const waPhone = pickAgentPhone(item);
+
+  const onScheduleCall = () => {
+    if (!agentId) {
+      window.location.href = "/schedule-call";
+      return;
+    }
+    window.location.href = `/schedule-call?agentId=${encodeURIComponent(agentId)}&listingId=${encodeURIComponent(
+      listingId
+    )}`;
+  };
+
+  const onWhatsApp = () => {
+    if (!waPhone) return;
+    const msg = encodeURIComponent(
+      `Hi, I'm interested in this property (${item?.title || "listing"}). Could you please share more details?`
+    );
+    window.open(`https://wa.me/${waPhone}?text=${msg}`, "_blank", "noopener,noreferrer");
+  };
 
   return (
     <section className="ld">
@@ -363,9 +393,35 @@ export default function ListingDetailsPage() {
               <span className="ld-paydot">i</span>
             </div>
 
-            <a className="ld-btn" href="#" onClick={(e) => e.preventDefault()}>
-              Download Brochure
-            </a>
+            {/* ✅ Brochure + two icon buttons (calendar + whatsapp) */}
+            <div className="ld-actionsRow">
+              <a className="ld-btn" href="#" onClick={(e) => e.preventDefault()}>
+                Download Brochure
+              </a>
+
+              <div className="ld-actionsIcons">
+                <button
+                  className="ld-ico-btn"
+                  type="button"
+                  aria-label="Schedule a call"
+                  title="Schedule a call"
+                  onClick={onScheduleCall}
+                >
+                  <FaCalendarAlt className="ld-ico" />
+                </button>
+
+                <button
+                  className={"ld-ico-btn" + (waPhone ? "" : " is-disabled")}
+                  type="button"
+                  aria-label="WhatsApp agent"
+                  title={waPhone ? "WhatsApp agent" : "WhatsApp number not set"}
+                  onClick={onWhatsApp}
+                  disabled={!waPhone}
+                >
+                  <FaWhatsapp className="ld-ico" />
+                </button>
+              </div>
+            </div>
 
             <div className="ld-section">
               <h2 className="ld-h2">About</h2>
@@ -451,55 +507,58 @@ export default function ListingDetailsPage() {
 
           {/* RIGHT (agent card) */}
           <aside className="ld-right">
-            <div className="ld-card">
-              <div className="ld-agent">
-                <img
-                  className="ld-agentimg"
-                  src={agentPhoto}
-                  alt={agentName}
-                  onError={(e) => {
-                    e.currentTarget.src = "https://via.placeholder.com/64x64?text=Agent";
-                  }}
-                />
-                <div className="ld-agentmeta">
-                  <div className="ld-agentname">{agentName}</div>
-                  <div className="ld-agentrole">{agentTitle}</div>
-                </div>
-              </div>
-
-              <div className="ld-cardtitle">SCHEDULE A CALL</div>
-              <div className="ld-cardsub">
-                Fill out the form below, and one of our experts will contact you shortly with more details.
-              </div>
-
-              <div className="ld-divider" />
-
-              <form className="ld-form" onSubmit={(e) => e.preventDefault()}>
-                <div className="ld-row2">
-                  <label className="ld-field">
-                    <span>First Name *</span>
-                    <input />
-                  </label>
-                  <label className="ld-field">
-                    <span>Last Name *</span>
-                    <input />
-                  </label>
+            {/* ✅ STICKY WRAPPER (this is what makes it sticky reliably in CSS grid) */}
+            <div className="ld-rightSticky">
+              <div className="ld-card">
+                <div className="ld-agent">
+                  <img
+                    className="ld-agentimg"
+                    src={agentPhoto}
+                    alt={agentName}
+                    onError={(e) => {
+                      e.currentTarget.src = "https://via.placeholder.com/64x64?text=Agent";
+                    }}
+                  />
+                  <div className="ld-agentmeta">
+                    <div className="ld-agentname">{agentName}</div>
+                    <div className="ld-agentrole">{agentTitle}</div>
+                  </div>
                 </div>
 
-                <label className="ld-field">
-                  <span>Email *</span>
-                  <input />
-                </label>
+                <div className="ld-cardtitle">SCHEDULE A CALL</div>
+                <div className="ld-cardsub">
+                  Fill out the form below, and one of our experts will contact you shortly with more details.
+                </div>
 
-                <label className="ld-field">
-                  <span>Phone *</span>
-                  <input placeholder="+971" />
-                </label>
+                <div className="ld-divider" />
 
-                <button className="ld-submit" type="submit">
-                  Submit
-                </button>
-              </form>
+                <form className="ld-form" onSubmit={(e) => e.preventDefault()}>
+                  <div className="ld-row2">
+                    <label className="ld-field">
+                      <span>First Name *</span>
+                      <input />
+                    </label>
+                    <label className="ld-field">
+                      <span>Last Name *</span>
+                      <input />
+                    </label>
+                  </div>
+
+                  <label className="ld-field">
+                    <span>Email *</span>
+                    <input />
+                  </label>
+
+                  <label className="ld-field">
+                    <span>Phone *</span>
+                    <input placeholder="+971" />
+                  </label>
+
+                  <button className="ld-submit" type="submit">
+                    Submit
+                  </button>
+                </form>
+              </div>
             </div>
           </aside>
         </div>
@@ -551,4 +610,25 @@ function InfoRow({ label, value }) {
       <div className="ld-info-v">{value}</div>
     </div>
   );
+}
+
+/* ================= helpers (same behavior as LatestOffPlanSection) ================= */
+function pickAgentId(p) {
+  return p?.assignedAgent?.id || p?.assignedAgentId || p?.agent?.id || p?.agentId || "";
+}
+
+function pickAgentPhone(p) {
+  const raw =
+    p?.assignedAgent?.phone ||
+    p?.assignedAgent?.whatsapp ||
+    p?.agent?.phone ||
+    p?.agent?.whatsapp ||
+    p?.agentPhone ||
+    p?.whatsapp ||
+    p?.phone ||
+    "";
+
+  const cleaned = String(raw).trim().replace(/[^\d+]/g, "");
+  if (!cleaned) return "";
+  return cleaned.startsWith("+") ? cleaned.slice(1) : cleaned;
 }
