@@ -357,7 +357,7 @@ export default function Header() {
                 <div className="m-contact">
                     <div className="m-contact-row">
                         <MapIcon />
-                        <div>Office 802, Bay Gate Tower, Business Bay, Dubai</div>
+                        <div>Floor 11, Tower 44, Dekwaneh, Beirut</div>
                     </div>
 
                     <div className="m-contact-row--split">
@@ -367,7 +367,7 @@ export default function Header() {
                         </div>
                         <div className="m-contact-item">
                             <PhoneIcon />
-                            <div>+971 54 888 0550</div>
+                            <div>+961 3 02 03 39</div>
                         </div>
                     </div>
                 </div>

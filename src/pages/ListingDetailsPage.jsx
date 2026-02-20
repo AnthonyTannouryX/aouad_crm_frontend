@@ -695,7 +695,7 @@ export default function ListingDetailsPage() {
                     <input
                       value={leadForm.phone}
                       onChange={(e) => setLeadForm((s) => ({ ...s, phone: e.target.value }))}
-                      placeholder="+971"
+                      placeholder="+961"
                       required
                     />
                   </label>
