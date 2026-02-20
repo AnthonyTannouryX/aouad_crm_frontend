@@ -8,10 +8,6 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "./listingDetailsPage.css";
 
-/**
- * Fix: default Leaflet marker icons don't load in many bundlers (Vite/CRA)
- * This makes sure the marker shows.
- */
 import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
 import markerIcon from "leaflet/dist/images/marker-icon.png";
 import markerShadow from "leaflet/dist/images/marker-shadow.png";
@@ -22,10 +18,123 @@ L.Icon.Default.mergeOptions({
   shadowUrl: markerShadow,
 });
 
-// Optional: try to force English labels by using an EN tile provider.
 const TILE_URL_EN = "https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png";
-
 const API_BASE = import.meta.env.VITE_API_BASE || "/api";
+
+/* ================= FX ================= */
+// Supported UI currencies
+const FX_SYMBOLS = ["USD", "EUR", "AED"];
+
+// Providers (we try multiple because CORS/network can break one of them)
+const FX_PROVIDER_FRANKFURTER = "https://api.frankfurter.app"; // base: EUR
+const FX_PROVIDER_ERAPI = "https://open.er-api.com/v6/latest/EUR"; // base: EUR
+
+function toMoneyNumber(v) {
+  if (v == null) return null;
+  if (typeof v === "number" && Number.isFinite(v)) return v;
+
+  const s = String(v).trim();
+  if (!s) return null;
+
+  const cleaned = s.replace(/[^\d.,-]/g, "").replace(/,/g, "");
+  const n = Number(cleaned);
+  return Number.isFinite(n) ? n : null;
+}
+
+function formatInt(n) {
+  const num = Number(n);
+  if (!Number.isFinite(num)) return "-";
+  try {
+    return new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }).format(num);
+  } catch {
+    return num.toLocaleString();
+  }
+}
+
+/**
+ * Convert amount between currencies using EUR pivot.
+ * ratesEurBased: { USD: 1.09, AED: 4.01 } where base=EUR.
+ */
+function convertViaEur(amount, from, to, ratesEurBased) {
+  const a = toMoneyNumber(amount);
+  if (a == null || a <= 0) return null;
+
+  const f = String(from || "EUR").toUpperCase();
+  const t = String(to || "EUR").toUpperCase();
+  if (f === t) return a;
+
+  const eurTo = (ccy) => {
+    if (ccy === "EUR") return 1;
+    const r = toMoneyNumber(ratesEurBased?.[ccy]);
+    return r && r > 0 ? r : null;
+  };
+
+  const eurToFrom = eurTo(f);
+  const eurToTo = eurTo(t);
+  if (!eurToFrom || !eurToTo) return null;
+
+  const inEur = a / eurToFrom;
+  return inEur * eurToTo;
+}
+
+async function fetchJsonWithTimeout(url, { signal, timeoutMs = 8000 } = {}) {
+  const ac = new AbortController();
+  const t = setTimeout(() => ac.abort(), timeoutMs);
+
+  const onAbort = () => ac.abort();
+  if (signal) {
+    if (signal.aborted) ac.abort();
+    else signal.addEventListener("abort", onAbort, { once: true });
+  }
+
+  try {
+    const res = await fetch(url, {
+      signal: ac.signal,
+      cache: "no-store",
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || data?.error || `HTTP ${res.status}`);
+    return data;
+  } finally {
+    clearTimeout(t);
+    if (signal) signal.removeEventListener("abort", onAbort);
+  }
+}
+
+/**
+ * Loads EUR-based rates for USD/AED.
+ * Strategy:
+ *  1) Try same-origin backend proxy (if you later add /fx route)
+ *  2) Try Frankfurter
+ *  3) Try ER-API fallback
+ */
+async function loadFxRatesEurBased(signal) {
+  // 1) Backend proxy (optional)
+  try {
+    const proxyUrl = `${API_BASE}/fx/latest?from=EUR&to=USD,AED`;
+    const d = await fetchJsonWithTimeout(proxyUrl, { signal, timeoutMs: 5000 });
+    const rates = d?.rates || d;
+    if (rates?.USD && rates?.AED) return rates;
+  } catch {
+    // ignore
+  }
+
+  // 2) Frankfurter
+  try {
+    const url = `${FX_PROVIDER_FRANKFURTER}/latest?from=EUR&to=USD,AED`;
+    const d = await fetchJsonWithTimeout(url, { signal });
+    if (d?.rates?.USD && d?.rates?.AED) return d.rates;
+  } catch {
+    // ignore
+  }
+
+  // 3) ER-API fallback (base EUR)
+  const d2 = await fetchJsonWithTimeout(FX_PROVIDER_ERAPI, { signal });
+  const r2 = d2?.rates;
+  if (r2?.USD && r2?.AED) return { USD: r2.USD, AED: r2.AED };
+
+  throw new Error("FX unavailable (all providers failed)");
+}
 
 export default function ListingDetailsPage() {
   const { id } = useParams();
@@ -37,13 +146,46 @@ export default function ListingDetailsPage() {
   const [lbOpen, setLbOpen] = useState(false);
   const [lbIndex, setLbIndex] = useState(0);
 
-  // ✅ fetch listing from backend
+  const [fxTo, setFxTo] = useState("USD");
+  const [fx, setFx] = useState({ loading: true, err: "", rates: {} });
+
+  /* =========================
+     ✅ NEW: Schedule-a-call lead form state
+  ========================= */
+  const [leadForm, setLeadForm] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+    note: "",
+  });
+  const [leadSending, setLeadSending] = useState(false);
+  const [leadSent, setLeadSent] = useState(false);
+  const [leadErr, setLeadErr] = useState("");
+
+  // ✅ fetch FX once (robust: multiple providers)
+  useEffect(() => {
+    const ac = new AbortController();
+
+    (async () => {
+      setFx((s) => ({ ...s, loading: true, err: "" }));
+      try {
+        const rates = await loadFxRatesEurBased(ac.signal);
+        setFx({ loading: false, err: "", rates: rates || {} });
+      } catch (e) {
+        if (ac.signal.aborted) return;
+        setFx({ loading: false, err: e?.message || "FX unavailable", rates: {} });
+      }
+    })();
+
+    return () => ac.abort();
+  }, []);
+
+  // ✅ fetch listing
   useEffect(() => {
     let alive = true;
 
     function normalizeOne(data) {
-      // Accept common shapes:
-      // { item }, { listing }, { data }, or direct object
       const raw =
         data?.item ||
         data?.listing ||
@@ -52,18 +194,10 @@ export default function ListingDetailsPage() {
 
       if (!raw) return null;
 
-      // Map common backend field names -> UI field names (non-destructive)
-      const mapped = {
+      return {
         ...raw,
-
-        // Images
         mainImageUrl:
-          raw.mainImageUrl ||
-          raw.coverImageUrl ||
-          raw.heroImageUrl ||
-          raw.imageUrl ||
-          "",
-
+          raw.mainImageUrl || raw.coverImageUrl || raw.heroImageUrl || raw.imageUrl || "",
         images: Array.isArray(raw.images)
           ? raw.images
           : Array.isArray(raw.gallery)
@@ -71,46 +205,33 @@ export default function ListingDetailsPage() {
             : Array.isArray(raw.media)
               ? raw.media
               : [],
-
-        // Developer/name fields
-        developerName:
-          raw.developerName || raw.developer || raw.developer_name || "",
-
-        // Location labels
+        developerName: raw.developerName || raw.developer || raw.developer_name || "",
         locationLabel:
           raw.locationLabel ||
           raw.location ||
           raw.addressText ||
           raw.address ||
           [raw.country, raw.city, raw.area].filter(Boolean).join(", "),
-
-        // Pricing
-        startingPrice:
-          raw.startingPrice ?? raw.priceFrom ?? raw.price ?? raw.starting_price,
-
-        // Misc
+        startingPrice: raw.startingPrice ?? raw.priceFrom ?? raw.price ?? raw.starting_price,
+        currency: raw.currency || raw.ccy || raw.priceCurrency || raw.currencyCode || "USD",
         paymentPlan: raw.paymentPlan || raw.payment_plan || raw.plan || "",
         completionYear: raw.completionYear || raw.handover || raw.completion_date || "",
         addressText: raw.addressText || raw.address || raw.location || "",
         community: raw.community || raw.area || "",
       };
-
-      return mapped;
     }
 
-    async function load() {
+    (async () => {
       try {
         setLoading(true);
         setErr("");
 
-        const res = await fetch(`${API_BASE}/public/listings/${id}`);
+        const res = await fetch(`${API_BASE}/public/listings/${id}`, { cache: "no-store" });
         const data = await res.json().catch(() => ({}));
-
         if (!res.ok) throw new Error(data?.error || "Failed to load listing");
         if (!alive) return;
 
         const normalized = normalizeOne(data);
-
         if (!normalized) {
           setItem(null);
           setErr("Listing not found (empty response).");
@@ -119,31 +240,26 @@ export default function ListingDetailsPage() {
 
         setItem(normalized);
       } catch (e) {
-        console.error(e);
         if (!alive) return;
         setItem(null);
-        setErr(e.message || "Failed to load listing");
+        setErr(e?.message || "Failed to load listing");
       } finally {
         if (alive) setLoading(false);
       }
-    }
+    })();
 
-    load();
     return () => {
       alive = false;
     };
   }, [id]);
 
-  // ✅ Build gallery array (cover first + rest)
   const imgs = useMemo(() => {
     if (!item) return [];
     const arr = [];
-
     if (item.mainImageUrl) arr.push(item.mainImageUrl);
 
     const candidates = Array.isArray(item.images) ? item.images : [];
     candidates.forEach((im) => {
-      // supports both {url} and string url
       const u = typeof im === "string" ? im : im?.url;
       if (u && u !== item.mainImageUrl) arr.push(u);
     });
@@ -198,13 +314,6 @@ export default function ListingDetailsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lbOpen, imgs.length]);
 
-  const money = (n, ccy) => {
-    if (n == null || n === "") return "-";
-    const num = Number(n);
-    if (Number.isNaN(num)) return String(n);
-    return `${ccy || "USD"} ${num.toLocaleString()}`;
-  };
-
   const formatSize = (it) => {
     const sqm = it?.sizeSqm != null && it?.sizeSqm !== "" ? Number(it.sizeSqm) : null;
     const sqft = it?.sizeSqft != null && it?.sizeSqft !== "" ? Number(it.sizeSqft) : null;
@@ -229,15 +338,38 @@ export default function ListingDetailsPage() {
     );
   }, [item]);
 
-  // ✅ map values
   const lat = item?.latitude != null && item.latitude !== "" ? Number(item.latitude) : null;
   const lng = item?.longitude != null && item.longitude !== "" ? Number(item.longitude) : null;
   const hasMap = Number.isFinite(lat) && Number.isFinite(lng);
-
-  // ✅ google maps link
   const googleMapsUrl = hasMap ? `https://www.google.com/maps?q=${lat},${lng}` : null;
 
-  // -------- states ----------
+  const baseCcy = useMemo(() => String(item?.currency || "USD").toUpperCase(), [item?.currency]);
+  const baseAmount = useMemo(() => toMoneyNumber(item?.startingPrice), [item?.startingPrice]);
+
+  // ✅ default tab = listing currency (so AED listings show AED right away)
+  useEffect(() => {
+    if (!item) return;
+    setFxTo(FX_SYMBOLS.includes(baseCcy) ? baseCcy : "USD");
+  }, [item, baseCcy]);
+
+  const canConvert = useMemo(() => {
+    return !!baseAmount && baseAmount > 0 && FX_SYMBOLS.includes(baseCcy);
+  }, [baseAmount, baseCcy]);
+
+  const displayPrice = useMemo(() => {
+    if (!canConvert) return null;
+
+    if (fx.loading || fx.err) return { currency: baseCcy, amount: baseAmount };
+
+    if (!FX_SYMBOLS.includes(fxTo)) return { currency: baseCcy, amount: baseAmount };
+    if (fxTo === baseCcy) return { currency: baseCcy, amount: baseAmount };
+
+    const conv = convertViaEur(baseAmount, baseCcy, fxTo, fx.rates);
+    if (!conv) return { currency: baseCcy, amount: baseAmount };
+
+    return { currency: fxTo, amount: conv };
+  }, [canConvert, baseAmount, baseCcy, fxTo, fx.loading, fx.err, fx.rates]);
+
   if (loading) {
     return (
       <section className="ld">
@@ -260,9 +392,7 @@ export default function ListingDetailsPage() {
             <span className="ld-crumb ld-crumb--active">Error</span>
           </nav>
 
-          <div style={{ padding: 16, border: "1px solid #eee", borderRadius: 12 }}>
-            {err}
-          </div>
+          <div style={{ padding: 16, border: "1px solid #eee", borderRadius: 12 }}>{err}</div>
         </div>
       </section>
     );
@@ -270,14 +400,11 @@ export default function ListingDetailsPage() {
 
   if (!item) return null;
 
-  // ✅ agent values
   const agentName = item.agent?.fullName || "Agent Name";
   const agentTitle = item.agent?.title || "Property Consultant";
   const agentPhoto = item.agent?.photoUrl || "https://via.placeholder.com/64x64?text=Agent";
-
   const sizeLabel = formatSize(item);
 
-  // ✅ same behavior as LatestOffPlanSection
   const agentId = pickAgentId(item);
   const listingId = item?.id || id || "";
   const waPhone = pickAgentPhone(item);
@@ -300,10 +427,42 @@ export default function ListingDetailsPage() {
     window.open(`https://wa.me/${waPhone}?text=${msg}`, "_blank", "noopener,noreferrer");
   };
 
+  const onSubmitLead = async (e) => {
+    e.preventDefault();
+    setLeadErr("");
+    setLeadSent(false);
+
+    try {
+      setLeadSending(true);
+
+      const payload = {
+        listingId,
+        agentId,
+        ...leadForm,
+        pageUrl: window.location.href,
+      };
+
+      const res = await fetch(`${API_BASE}/public/leads/schedule-call`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || "Failed to submit");
+
+      setLeadSent(true);
+      setLeadForm({ firstName: "", lastName: "", email: "", phone: "", note: "" });
+    } catch (err) {
+      setLeadErr(err?.message || "Failed to submit");
+    } finally {
+      setLeadSending(false);
+    }
+  };
+
   return (
     <section className="ld">
       <div className="ld-inner">
-        {/* ===== BREADCRUMB ===== */}
         <nav className="ld-crumbs">
           <Link to="/" className="ld-crumb">
             Aouad Real Estate
@@ -316,7 +475,6 @@ export default function ListingDetailsPage() {
           <span className="ld-crumb ld-crumb--active">{item.title}</span>
         </nav>
 
-        {/* ===== GALLERY ===== */}
         <div className="ld-gallery">
           <button className="ld-main" onClick={() => open(0)} type="button" disabled={!main}>
             {main ? <img src={main} alt={item.title} /> : <div className="ld-mainEmpty" />}
@@ -341,20 +499,43 @@ export default function ListingDetailsPage() {
           </div>
         </div>
 
-        {/* ===== CONTENT GRID ===== */}
         <div className="ld-content">
-          {/* LEFT */}
           <div className="ld-left">
             <span className="ld-typebadge">{item.propertyType || item.listingType || "Property"}</span>
 
             <h1 className="ld-title">{item.title}</h1>
             <div className="ld-sub">{item.developerName || ""}</div>
 
-            <div className="ld-from">
-              {item.startingPrice ? `From ${money(item.startingPrice, item.currency)}` : "Price on request"}
+            {/* PRICE + converter */}
+            <div className="ld-fromRow">
+              <div className="ld-fromText">
+                {baseAmount && baseAmount > 0 && displayPrice
+                  ? `From ${displayPrice.currency} ${formatInt(displayPrice.amount)}`
+                  : "Price on request"}
+              </div>
+
+              {canConvert ? (
+                <div className="ld-fxInline" aria-label="Currency converter">
+                  <div className="ld-fxSeg" role="tablist" aria-label="Convert currency">
+                    {FX_SYMBOLS.map((c) => (
+                      <button
+                        key={c}
+                        type="button"
+                        className={"ld-fxSegBtn" + (fxTo === c ? " is-active" : "")}
+                        onClick={() => setFxTo(c)}
+                      >
+                        {c}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div style={{ fontSize: 12, opacity: 0.65, marginTop: 6 }}>
+
+                  </div>
+                </div>
+              ) : null}
             </div>
 
-            {/* bedrooms / bathrooms / parking / size row */}
             {showFacts && (
               <div className="ld-facts">
                 {item.bedrooms != null && (
@@ -363,21 +544,18 @@ export default function ListingDetailsPage() {
                     <span className="ld-factVal">{item.bedrooms}</span>
                   </div>
                 )}
-
                 {item.bathrooms != null && (
                   <div className="ld-fact">
                     <FaBath className="ld-factIcon" />
                     <span className="ld-factVal">{item.bathrooms}</span>
                   </div>
                 )}
-
                 {item.parking != null && (
                   <div className="ld-fact">
                     <FaCar className="ld-factIcon" />
                     <span className="ld-factVal">{item.parking}</span>
                   </div>
                 )}
-
                 {sizeLabel && (
                   <div className="ld-fact">
                     <FaRulerCombined className="ld-factIcon" />
@@ -393,30 +571,22 @@ export default function ListingDetailsPage() {
               <span className="ld-paydot">i</span>
             </div>
 
-            {/* ✅ Brochure + two icon buttons (calendar + whatsapp) */}
             <div className="ld-actionsRow">
               <a className="ld-btn" href="#" onClick={(e) => e.preventDefault()}>
                 Download Brochure
               </a>
 
               <div className="ld-actionsIcons">
-                <button
-                  className="ld-ico-btn"
-                  type="button"
-                  aria-label="Schedule a call"
-                  title="Schedule a call"
-                  onClick={onScheduleCall}
-                >
+                <button className="ld-ico-btn" type="button" onClick={onScheduleCall} title="Schedule a call">
                   <FaCalendarAlt className="ld-ico" />
                 </button>
 
                 <button
                   className={"ld-ico-btn" + (waPhone ? "" : " is-disabled")}
                   type="button"
-                  aria-label="WhatsApp agent"
-                  title={waPhone ? "WhatsApp agent" : "WhatsApp number not set"}
                   onClick={onWhatsApp}
                   disabled={!waPhone}
+                  title={waPhone ? "WhatsApp agent" : "WhatsApp number not set"}
                 >
                   <FaWhatsapp className="ld-ico" />
                 </button>
@@ -429,41 +599,8 @@ export default function ListingDetailsPage() {
             </div>
 
             <div className="ld-section">
-              <h2 className="ld-h2">General information</h2>
-
-              <div className="ld-info">
-                <InfoRow label="Development type" value={item.listingType || "-"} />
-                <InfoRow label="Property type" value={item.propertyType || "-"} />
-                <InfoRow label="Bedrooms" value={item.bedrooms ?? "-"} />
-                <InfoRow label="Bathrooms" value={item.bathrooms ?? "-"} />
-                <InfoRow label="Parking" value={item.parking ?? "-"} />
-                <InfoRow label="Size" value={sizeLabel || "-"} />
-                <InfoRow label="Completion Date" value={item.completionYear || "-"} />
-                <InfoRow label="Developer" value={item.developerName || "-"} />
-                <InfoRow label="Community" value={item.community || item.area || "-"} />
-
-                <InfoRow
-                  label="Location"
-                  value={
-                    item.locationLabel ||
-                    item.addressText ||
-                    `${item.area || ""}${item.city ? `, ${item.city}` : ""}` ||
-                    "-"
-                  }
-                />
-
-                <InfoRow
-                  label="Starting Price"
-                  value={item.startingPrice ? money(item.startingPrice, item.currency) : "-"}
-                />
-              </div>
-            </div>
-
-            {/* ✅ MAP SECTION */}
-            <div className="ld-section">
               <h2 className="ld-h2">Location</h2>
 
-              {/* ✅ clickable address */}
               {item.addressText && googleMapsUrl ? (
                 <a
                   href={googleMapsUrl}
@@ -479,15 +616,7 @@ export default function ListingDetailsPage() {
 
               <div className="ld-map" style={{ overflow: "hidden", borderRadius: 14 }}>
                 {hasMap ? (
-                  // ✅ clickable map
-                  <a
-                    href={googleMapsUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{ display: "block" }}
-                    aria-label="Open in Google Maps"
-                    title="Open in Google Maps"
-                  >
+                  <a href={googleMapsUrl} target="_blank" rel="noopener noreferrer" style={{ display: "block" }}>
                     <MapContainer
                       center={[lat, lng]}
                       zoom={14}
@@ -505,9 +634,7 @@ export default function ListingDetailsPage() {
             </div>
           </div>
 
-          {/* RIGHT (agent card) */}
           <aside className="ld-right">
-            {/* ✅ STICKY WRAPPER (this is what makes it sticky reliably in CSS grid) */}
             <div className="ld-rightSticky">
               <div className="ld-card">
                 <div className="ld-agent">
@@ -532,30 +659,63 @@ export default function ListingDetailsPage() {
 
                 <div className="ld-divider" />
 
-                <form className="ld-form" onSubmit={(e) => e.preventDefault()}>
+                {/* ✅ FIXED: This now submits to backend and creates a Lead */}
+                <form className="ld-form" onSubmit={onSubmitLead}>
                   <div className="ld-row2">
                     <label className="ld-field">
                       <span>First Name *</span>
-                      <input />
+                      <input
+                        value={leadForm.firstName}
+                        onChange={(e) => setLeadForm((s) => ({ ...s, firstName: e.target.value }))}
+                        required
+                      />
                     </label>
                     <label className="ld-field">
                       <span>Last Name *</span>
-                      <input />
+                      <input
+                        value={leadForm.lastName}
+                        onChange={(e) => setLeadForm((s) => ({ ...s, lastName: e.target.value }))}
+                        required
+                      />
                     </label>
                   </div>
 
                   <label className="ld-field">
-                    <span>Email *</span>
-                    <input />
+                    <span>Email</span>
+                    <input
+                      value={leadForm.email}
+                      onChange={(e) => setLeadForm((s) => ({ ...s, email: e.target.value }))}
+                      type="email"
+                      placeholder="name@email.com"
+                    />
                   </label>
 
                   <label className="ld-field">
                     <span>Phone *</span>
-                    <input placeholder="+971" />
+                    <input
+                      value={leadForm.phone}
+                      onChange={(e) => setLeadForm((s) => ({ ...s, phone: e.target.value }))}
+                      placeholder="+971"
+                      required
+                    />
                   </label>
 
-                  <button className="ld-submit" type="submit">
-                    Submit
+                  <label className="ld-field">
+                    <span>Note</span>
+                    <input
+                      value={leadForm.note}
+                      onChange={(e) => setLeadForm((s) => ({ ...s, note: e.target.value }))}
+                      placeholder="Preferred time / questions…"
+                    />
+                  </label>
+
+                  {leadErr ? <div style={{ marginTop: 10, color: "crimson" }}>{leadErr}</div> : null}
+                  {leadSent ? (
+                    <div style={{ marginTop: 10, color: "green" }}>Submitted — we’ll contact you shortly.</div>
+                  ) : null}
+
+                  <button className="ld-submit" type="submit" disabled={leadSending}>
+                    {leadSending ? "Submitting…" : "Submit"}
                   </button>
                 </form>
               </div>
@@ -564,55 +724,30 @@ export default function ListingDetailsPage() {
         </div>
       </div>
 
-      {/* ===== LIGHTBOX ===== */}
-      {lbOpen && (
+      {lbOpen ? (
         <div className="lb" onClick={close}>
           <button className="lb-x" onClick={close} type="button">
             ✕
           </button>
 
-          {imgs.length > 1 && (
+          {imgs.length > 1 ? (
             <>
-              <button
-                className="lb-nav lb-prev"
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  prev();
-                }}
-              >
+              <button className="lb-nav lb-prev" type="button" onClick={(e) => (e.stopPropagation(), prev())}>
                 ‹
               </button>
-              <button
-                className="lb-nav lb-next"
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  next();
-                }}
-              >
+              <button className="lb-nav lb-next" type="button" onClick={(e) => (e.stopPropagation(), next())}>
                 ›
               </button>
             </>
-          )}
+          ) : null}
 
           <img className="lb-img" src={imgs[lbIndex]} alt="" onClick={(e) => e.stopPropagation()} />
         </div>
-      )}
+      ) : null}
     </section>
   );
 }
 
-function InfoRow({ label, value }) {
-  return (
-    <div className="ld-info-row">
-      <div className="ld-info-k">{label}</div>
-      <div className="ld-info-v">{value}</div>
-    </div>
-  );
-}
-
-/* ================= helpers (same behavior as LatestOffPlanSection) ================= */
 function pickAgentId(p) {
   return p?.assignedAgent?.id || p?.assignedAgentId || p?.agent?.id || p?.agentId || "";
 }

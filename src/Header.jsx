@@ -1,12 +1,10 @@
 // src/components/Header.jsx
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import logo from "./assets/logo_real_state_gold.png";
 import "./header.css";
 
-const CURRENCIES = ["USD", "AED", "EUR", "GBP", "SAR", "QAR", "KWD", "BHD", "OMR", "JOD", "LBP"];
-
-// ✅ WhatsApp (ONLY ADDED)
+// ✅ WhatsApp
 const WHATSAPP_URL =
     "https://wa.me/9613070383?text=" +
     encodeURIComponent("Hello, I’m interested in your real estate services.");
@@ -14,11 +12,6 @@ const WHATSAPP_URL =
 export default function Header() {
     const [mobileOpen, setMobileOpen] = useState(false);
     const [openAcc, setOpenAcc] = useState(null); // "listings" | "regions" | "company" | null
-
-    // currency dropdown state
-    const [currency, setCurrency] = useState("USD");
-    const [curOpen, setCurOpen] = useState(false);
-    const curRef = useRef(null);
 
     useEffect(() => {
         if (!mobileOpen) return;
@@ -31,25 +24,10 @@ export default function Header() {
         const onKey = (e) => {
             if (e.key === "Escape") {
                 setMobileOpen(false);
-                setCurOpen(false);
             }
         };
         document.addEventListener("keydown", onKey);
         return () => document.removeEventListener("keydown", onKey);
-    }, []);
-
-    // close currency on outside click
-    useEffect(() => {
-        const onDown = (e) => {
-            if (!curRef.current) return;
-            if (!curRef.current.contains(e.target)) setCurOpen(false);
-        };
-        document.addEventListener("mousedown", onDown);
-        document.addEventListener("touchstart", onDown, { passive: true });
-        return () => {
-            document.removeEventListener("mousedown", onDown);
-            document.removeEventListener("touchstart", onDown);
-        };
     }, []);
 
     const toggleAcc = (key) => setOpenAcc((v) => (v === key ? null : key));
@@ -85,14 +63,20 @@ export default function Header() {
                 <nav className="nav">
                     {/* Listings (small dropdown) */}
                     <div className="nav-dd nav-dd--menu">
-                        <a className="nav-item nav-item--pill" href="#" onClick={(e) => e.preventDefault()}>
+                        <a
+                            className="nav-item nav-item--pill"
+                            href="#"
+                            onClick={(e) => e.preventDefault()}
+                        >
                             Listings <CaretDown />
                         </a>
 
                         <div className="dropdown dropdown--menu">
                             <Link className="menu-item" to="/off-plan">
                                 <div className="menu-title">Off-Plan</div>
-                                <div className="menu-subtitle">New developments under construction</div>
+                                <div className="menu-subtitle">
+                                    New developments under construction
+                                </div>
                             </Link>
 
                             <Link className="menu-item" to="/sale">
@@ -109,7 +93,11 @@ export default function Header() {
 
                     {/* Regions (mega) */}
                     <div className="nav-dd nav-dd--mega">
-                        <a className="nav-item nav-item--pill" href="#" onClick={(e) => e.preventDefault()}>
+                        <a
+                            className="nav-item nav-item--pill"
+                            href="#"
+                            onClick={(e) => e.preventDefault()}
+                        >
                             Regions <CaretDown />
                         </a>
 
@@ -126,7 +114,10 @@ export default function Header() {
                                         <Link className="mega-link" to="/listings?country=lebanon">
                                             Lebanon
                                         </Link>
-                                        <Link className="mega-link" to="/listings?country=saudi-arabia">
+                                        <Link
+                                            className="mega-link"
+                                            to="/listings?country=saudi-arabia"
+                                        >
                                             Saudi Arabia
                                         </Link>
                                     </div>
@@ -158,7 +149,10 @@ export default function Header() {
                                 <div className="mega-col">
                                     <div className="mega-section">
                                         <div className="mega-h">More</div>
-                                        <div className="mega-link" style={{ opacity: 0.6, pointerEvents: "none" }}>
+                                        <div
+                                            className="mega-link"
+                                            style={{ opacity: 0.6, pointerEvents: "none" }}
+                                        >
                                             Coming soon…
                                         </div>
                                     </div>
@@ -169,71 +163,59 @@ export default function Header() {
 
                     {/* Company */}
                     <div className="nav-dd nav-dd--menu">
-                        <a className="nav-item nav-item--pill" href="#" onClick={(e) => e.preventDefault()}>
+                        <a
+                            className="nav-item nav-item--pill"
+                            href="#"
+                            onClick={(e) => e.preventDefault()}
+                        >
                             Company <CaretDown />
                         </a>
 
                         <div className="dropdown dropdown--menu">
                             <Link className="menu-item" to="/why-aouad">
                                 <div className="menu-title">Why Aouad?</div>
-                                <div className="menu-subtitle">Discover Why We’re Different in Real Estate</div>
+                                <div className="menu-subtitle">
+                                    Discover Why We’re Different in Real Estate
+                                </div>
                             </Link>
 
                             <Link className="menu-item" to="/our-team">
                                 <div className="menu-title">Our Team</div>
-                                <div className="menu-subtitle">Meet the Experts Behind Our Success</div>
+                                <div className="menu-subtitle">
+                                    Meet the Experts Behind Our Success
+                                </div>
                             </Link>
 
                             <Link className="menu-item" to="/careers">
                                 <div className="menu-title">Careers</div>
-                                <div className="menu-subtitle">Become Part of Our Growing Team</div>
+                                <div className="menu-subtitle">
+                                    Become Part of Our Growing Team
+                                </div>
                             </Link>
 
                             <Link className="menu-item" to="/contact">
                                 <div className="menu-title">Contact</div>
-                                <div className="menu-subtitle">Contact Us and Start Your Journey Today</div>
+                                <div className="menu-subtitle">
+                                    Contact Us and Start Your Journey Today
+                                </div>
                             </Link>
                         </div>
                     </div>
 
-                    {/* ✅ Schedule a Call (NO dropdown, same pill style) */}
-                    <Link to="/schedule-call" className="nav-item nav-item--pill" onClick={() => window.scrollTo(0, 0)}>
+                    {/* Schedule a Call */}
+                    <Link
+                        to="/schedule-call"
+                        className="nav-item nav-item--pill"
+                        onClick={() => window.scrollTo(0, 0)}
+                    >
                         Schedule a Call
                     </Link>
                 </nav>
 
                 {/* ACTIONS */}
                 <div className="actions">
-                    {/* Currency dropdown */}
-                    <div className={"cur-dd" + (curOpen ? " is-open" : "")} ref={curRef}>
-                        <button
-                            className="pill"
-                            type="button"
-                            aria-haspopup="menu"
-                            aria-expanded={curOpen}
-                            onClick={() => setCurOpen((v) => !v)}
-                        >
-                            {currency} <CaretDown />
-                        </button>
+                    {/* ✅ Currency dropdown REMOVED */}
 
-                        <div className="cur-menu" role="menu" aria-hidden={!curOpen}>
-                            {CURRENCIES.map((c) => (
-                                <button
-                                    key={c}
-                                    type="button"
-                                    className={"cur-item" + (c === currency ? " is-active" : "")}
-                                    onClick={() => {
-                                        setCurrency(c);
-                                        setCurOpen(false);
-                                    }}
-                                >
-                                    {c}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* ✅ ONLY CHANGE: add onClick */}
                     <button
                         className="pill cta"
                         type="button"
@@ -258,7 +240,10 @@ export default function Header() {
             </div>
 
             {/* MOBILE DRAWER */}
-            <div className={"m-overlay" + (mobileOpen ? " is-open" : "")} onClick={closeMobile} />
+            <div
+                className={"m-overlay" + (mobileOpen ? " is-open" : "")}
+                onClick={closeMobile}
+            />
 
             <aside
                 id="mobile-drawer"
@@ -270,7 +255,12 @@ export default function Header() {
             >
                 <div className="m-top">
                     <img src={logo} alt="Logo" className="m-logo" />
-                    <button className="m-close" type="button" aria-label="Close menu" onClick={closeMobile}>
+                    <button
+                        className="m-close"
+                        type="button"
+                        aria-label="Close menu"
+                        onClick={closeMobile}
+                    >
                         <CloseIcon />
                     </button>
                 </div>
@@ -278,7 +268,11 @@ export default function Header() {
                 <div className="m-sep" />
 
                 <div className="m-acc">
-                    <MobileAccRow label="Listings" open={openAcc === "listings"} onToggle={() => toggleAcc("listings")}>
+                    <MobileAccRow
+                        label="Listings"
+                        open={openAcc === "listings"}
+                        onToggle={() => toggleAcc("listings")}
+                    >
                         <Link className="m-sub m-sub--desc" to="/off-plan" onClick={closeMobile}>
                             Off-Plan <span>New developments under construction</span>
                         </Link>
@@ -290,7 +284,11 @@ export default function Header() {
                         </Link>
                     </MobileAccRow>
 
-                    <MobileAccRow label="Regions" open={openAcc === "regions"} onToggle={() => toggleAcc("regions")}>
+                    <MobileAccRow
+                        label="Regions"
+                        open={openAcc === "regions"}
+                        onToggle={() => toggleAcc("regions")}
+                    >
                         <div className="m-groups">
                             <div className="m-group">
                                 <div className="m-gh">Middle East</div>
@@ -300,7 +298,11 @@ export default function Header() {
                                 <Link className="m-sub" to="/listings?country=lebanon" onClick={closeMobile}>
                                     Lebanon
                                 </Link>
-                                <Link className="m-sub" to="/listings?country=saudi-arabia" onClick={closeMobile}>
+                                <Link
+                                    className="m-sub"
+                                    to="/listings?country=saudi-arabia"
+                                    onClick={closeMobile}
+                                >
                                     Saudi Arabia
                                 </Link>
                             </div>
@@ -326,7 +328,11 @@ export default function Header() {
                         </div>
                     </MobileAccRow>
 
-                    <MobileAccRow label="Company" open={openAcc === "company"} onToggle={() => toggleAcc("company")}>
+                    <MobileAccRow
+                        label="Company"
+                        open={openAcc === "company"}
+                        onToggle={() => toggleAcc("company")}
+                    >
                         <Link className="m-sub" to="/why-aouad" onClick={closeMobile}>
                             Why Us?
                         </Link>
@@ -341,7 +347,6 @@ export default function Header() {
                         </Link>
                     </MobileAccRow>
 
-                    {/* ✅ Schedule a Call (mobile link, NO accordion) */}
                     <Link className="m-main" to="/schedule-call" onClick={closeMobile}>
                         Schedule a Call
                     </Link>
@@ -378,8 +383,13 @@ export default function Header() {
                         <InIcon />
                     </a>
 
-                    {/* ✅ ONLY CHANGE: real WhatsApp link */}
-                    <a className="m-soc" href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer" aria-label="WhatsApp">
+                    <a
+                        className="m-soc"
+                        href={WHATSAPP_URL}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label="WhatsApp"
+                    >
                         <WhatsAppIcon />
                     </a>
                 </div>
@@ -430,7 +440,13 @@ function CaretDown() {
 function BurgerIcon() {
     return (
         <svg className="m-burger-ic" viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M4 6h16M4 12h16M4 18h16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+            <path
+                d="M4 6h16M4 12h16M4 18h16"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+            />
         </svg>
     );
 }
@@ -438,7 +454,13 @@ function BurgerIcon() {
 function CloseIcon() {
     return (
         <svg className="m-close-ic" viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+            <path
+                d="M6 6l12 12M18 6L6 18"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+            />
         </svg>
     );
 }
@@ -458,8 +480,20 @@ function WhatsAppIcon() {
 function MapIcon() {
     return (
         <svg className="m-ci" viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M12 22s7-6.2 7-12a7 7 0 10-14 0c0 5.8 7 12 7 12z" fill="none" stroke="currentColor" strokeWidth="1.7" />
-            <circle cx="12" cy="10" r="2.2" fill="none" stroke="currentColor" strokeWidth="1.7" />
+            <path
+                d="M12 22s7-6.2 7-12a7 7 0 10-14 0c0 5.8 7 12 7 12z"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.7"
+            />
+            <circle
+                cx="12"
+                cy="10"
+                r="2.2"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.7"
+            />
         </svg>
     );
 }
@@ -467,7 +501,13 @@ function MailIcon() {
     return (
         <svg className="m-ci" viewBox="0 0 24 24" aria-hidden="true">
             <path d="M4 6h16v12H4z" fill="none" stroke="currentColor" strokeWidth="1.7" />
-            <path d="M4 7l8 6 8-6" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+            <path
+                d="M4 7l8 6 8-6"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.7"
+                strokeLinejoin="round"
+            />
         </svg>
     );
 }
@@ -489,15 +529,30 @@ function PhoneIcon() {
 function FbIcon() {
     return (
         <svg className="m-si" viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M14 8h2V5h-2c-2 0-3 1.2-3 3v2H9v3h2v6h3v-6h2.2l.8-3H14V8c0-.6.3-1 1-1z" fill="currentColor" />
+            <path
+                d="M14 8h2V5h-2c-2 0-3 1.2-3 3v2H9v3h2v6h3v-6h2.2l.8-3H14V8c0-.6.3-1 1-1z"
+                fill="currentColor"
+            />
         </svg>
     );
 }
 function IgIcon() {
     return (
         <svg className="m-si" viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M7 2h10a5 5 0 015 5v10a5 5 0 01-5 5H7a5 5 0 01-5-5V7a5 5 0 015-5z" fill="none" stroke="currentColor" strokeWidth="1.6" />
-            <circle cx="12" cy="12" r="3.2" fill="none" stroke="currentColor" strokeWidth="1.6" />
+            <path
+                d="M7 2h10a5 5 0 015 5v10a5 5 0 01-5 5H7a5 5 0 01-5-5V7a5 5 0 015-5z"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.6"
+            />
+            <circle
+                cx="12"
+                cy="12"
+                r="3.2"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.6"
+            />
             <circle cx="17.2" cy="6.8" r="0.9" fill="currentColor" />
         </svg>
     );

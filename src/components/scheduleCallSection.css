@@ -1,4 +1,4 @@
-/* ================= SCHEDULE A CALL ================= */
+/* ================= TEXT SECTION (NO FORM) ================= */
 
 .sc {
     padding: 72px 0 84px;
@@ -11,9 +11,15 @@
     padding: 0 24px;
 
     display: grid;
-    grid-template-columns: 1.1fr 0.95fr;
-    gap: 56px;
+    grid-template-columns: 1fr;
+    /* single column now */
+    gap: 0;
     align-items: start;
+}
+
+/* optional: if you keep className sc-inner--single */
+.sc-inner--single {
+    grid-template-columns: 1fr;
 }
 
 /* LEFT */
@@ -33,7 +39,7 @@
     font-size: 15px;
     line-height: 1.75;
     color: rgb(100, 116, 139);
-    max-width: 640px;
+    max-width: 760px;
 }
 
 .sc-bullets {
@@ -42,151 +48,25 @@
     color: rgb(100, 116, 139);
     line-height: 1.9;
     font-size: 15px;
+    max-width: 760px;
 }
 
 .sc-bullets li {
     margin: 8px 0;
 }
 
-/* RIGHT CARD */
-.sc-card {
-    background: #fff;
-    border: 1px solid rgba(15, 23, 42, 0.12);
-    border-radius: 14px;
-    padding: 28px 28px 30px;
-}
-
-.sc-card-title {
-    margin: 0 0 10px;
-    font-family: Montserrat, sans-serif;
-    font-size: 22px;
-    font-weight: 400;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
+.sc-signature {
+    margin: 18px 0 0;
     color: rgb(17, 24, 39);
-}
-
-.sc-card-sub {
-    margin: 0;
-    font-size: 14px;
-    line-height: 1.65;
-    color: rgb(100, 116, 139);
-}
-
-.sc-divider {
-    height: 1px;
-    background: rgba(15, 23, 42, 0.12);
-    margin: 18px 0 20px;
-}
-
-/* FORM */
-.sc-form {
-    display: grid;
-    gap: 18px;
-}
-
-.sc-row-2 {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 18px;
-}
-
-.sc-field {
-    display: grid;
-    gap: 8px;
-}
-
-.sc-label {
-    font-size: 14px;
-    font-weight: 600;
-    color: rgb(17, 24, 39);
-}
-
-.sc-input {
-    height: 46px;
-    width: 100%;
-    border: 1px solid rgba(15, 23, 42, 0.18);
-    border-radius: 10px;
-    padding: 0 14px;
-    outline: none;
-    background: #fff;
-    font-size: 14px;
-    color: rgb(17, 24, 39);
-}
-
-.sc-input:focus {
-    border-color: rgba(15, 23, 42, 0.35);
-}
-
-/* PHONE ROW */
-.sc-phone {
-    display: grid;
-    grid-template-columns: 150px 1fr;
-    gap: 12px;
-    align-items: center;
-}
-
-.sc-flag {
-    height: 46px;
-    border: 1px solid rgba(15, 23, 42, 0.18);
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 0 12px;
-    background: #fff;
-    color: rgb(17, 24, 39);
-}
-
-.sc-uae {
-    font-size: 18px;
-    line-height: 1;
-}
-
-.sc-caret {
-    font-size: 12px;
-    color: rgb(100, 116, 139);
-    transform: translateY(-1px);
-}
-
-.sc-code {
-    font-size: 14px;
-    color: rgb(17, 24, 39);
-    letter-spacing: 0.02em;
-}
-
-.sc-input--phone {
-    padding-left: 14px;
-}
-
-/* BUTTON */
-.sc-btn {
-    width: 130px;
-    height: 44px;
-    border: none;
-    border-radius: 10px;
-    background: #000;
-    color: #fff;
-    font-size: 14px;
-    cursor: pointer;
 }
 
 /* MOBILE */
 @media (max-width: 980px) {
-    .sc-inner {
-        grid-template-columns: 1fr;
-        gap: 34px;
+    .sc {
+        padding: 56px 0 64px;
     }
 
-    .sc-row-2 {
-        grid-template-columns: 1fr;
-    }
-
-    .sc-phone {
-        grid-template-columns: 1fr;
-    }
-
-    .sc-btn {
-        width: 100%;
+    .sc-title {
+        font-size: 24px;
     }
 }
