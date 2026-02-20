@@ -516,3 +516,16 @@
         grid-template-columns: 1fr;
     }
 }
+
+/* ================= AGENT CONTACT ONLY MODE ================= */
+
+.os-shell {
+    display: flex;
+    justify-content: center;
+}
+
+.os-left {
+    width: 100%;
+    max-width: 420px;
+    /* matches screenshot nicely */
+}

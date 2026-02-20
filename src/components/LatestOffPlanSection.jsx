@@ -3,7 +3,6 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import "./latestOffPlanSection.css";
 
-/* icons */
 import {
   FaWhatsapp,
   FaChevronRight,
@@ -26,9 +25,7 @@ export default function LatestOffPlanSection() {
     async function fetchJson(url) {
       const res = await fetch(url);
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        throw new Error(data?.error || `Failed to fetch: ${res.status}`);
-      }
+      if (!res.ok) throw new Error(data?.error || `Failed to fetch: ${res.status}`);
       return data;
     }
 
@@ -131,7 +128,7 @@ function CardsSkeleton() {
   );
 }
 
-/* ================= CARDS CAROUSEL (SWIPE / SCROLL) ================= */
+/* ================= CARDS CAROUSEL ================= */
 function CardsCarousel({ items }) {
   const viewportRef = useRef(null);
   const [index, setIndex] = useState(0);
@@ -176,127 +173,148 @@ function CardsCarousel({ items }) {
   return (
     <>
       <div className="lop-scroll" ref={viewportRef} onScroll={onScroll}>
-        {items.map((p) => (
-          <Link
-            key={p.id}
-            to={`/listing/${p.id}`}
-            className="lop-card"
-            onClick={() => window.scrollTo(0, 0)}
-            aria-label={`Open listing: ${p.title || p.location || p.id}`}
-          >
-            <div className="lop-media">
-              {p.mainImageUrl ? (
-                <img
-                  className="lop-img"
-                  src={p.mainImageUrl}
-                  alt={p.title || "Off-plan property"}
-                  onError={(e) => {
-                    e.currentTarget.style.display = "none";
-                  }}
-                />
-              ) : (
-                <div className="lop-img" style={{ background: "#eee" }} />
-              )}
+        {items.map((p) => {
+          const imgUrl =
+            p.mainImageUrl ||
+            p.images?.[0]?.url ||
+            p.images?.[0]?.imageUrl ||
+            p.images?.[0]?.src ||
+            null;
 
-              <div className="lop-badges">
-                {p.featured && (
-                  <div className="lop-badge lop-badge--light">
-                    Featured <FaStar className="lop-star" />
-                  </div>
-                )}
-                {p.handover && <div className="lop-badge lop-badge--dark">{p.handover}</div>}
-                {(p.developer || p.developerName) && (
-                  <div className="lop-badge lop-badge--black">
-                    {p.developer || p.developerName}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="lop-body">
-              <h3 className="lop-card-title">{p.title || "Off-plan Property"}</h3>
-
-              <div className="lop-meta">
-                <div className="lop-meta-row">
-                  <FaMapMarkerAlt className="lop-mini" />
-                  <span>
-                    {p.location || [p.country, p.city, p.area].filter(Boolean).join(", ") || "-"}
-                  </span>
-                </div>
-
-                <div className="lop-meta-row">
-                  <FaRegCircle className="lop-mini" />
-                  <span>Payment Plan: {p.paymentPlan || "-"}</span>
-                </div>
-              </div>
-
-              <div className="lop-line" />
-
-              <div className="lop-bottom">
-                <span className="lop-from">{formatFromPrice(p)}</span>
-
-                <div className="lop-actions">
-                  {/* ✅ Calendar -> goes to Schedule Call for ONLY assigned agent */}
-                  <button
-                    className="lop-ico-btn"
-                    aria-label="Schedule a call"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-
-                      const agentId =
-                        p?.assignedAgent?.id ||
-                        p?.assignedAgentId ||
-                        p?.agent?.id ||
-                        p?.agentId ||
-                        "";
-
-                      const listingId = p?.id || "";
-
-                      if (!agentId) {
-                        window.location.href = "/schedule-call";
-                        return;
-                      }
-
-                      window.location.href = `/schedule-call?agentId=${encodeURIComponent(
-                        agentId
-                      )}&listingId=${encodeURIComponent(listingId)}`;
+          return (
+            <Link
+              key={p.id}
+              to={`/listing/${p.id}`}
+              className="lop-card"
+              onClick={() => window.scrollTo(0, 0)}
+              aria-label={`Open listing: ${p.title || p.location || p.id}`}
+            >
+              <div className="lop-media">
+                {imgUrl ? (
+                  <img
+                    className="lop-img"
+                    src={imgUrl}
+                    alt={p.title || "Off-plan property"}
+                    loading="lazy"
+                    onError={(e) => {
+                      e.currentTarget.style.display = "none";
                     }}
-                  >
-                    <FaCalendarAlt className="lop-action-ico" />
-                  </button>
+                  />
+                ) : (
+                  <div className="lop-img" style={{ background: "#eee" }} />
+                )}
 
-                  {/* WhatsApp -> assigned agent */}
-                  <button
-                    className="lop-ico-btn"
-                    aria-label="WhatsApp agent"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
+                <div className="lop-badges">
+                  {p.featured && (
+                    <div className="lop-badge lop-badge--light">
+                      Featured <FaStar className="lop-star" />
+                    </div>
+                  )}
 
-                      const phone = pickAgentPhone(p);
-                      if (!phone) return;
+                  {p.handover && (
+                    <div className="lop-badge lop-badge--dark">{p.handover}</div>
+                  )}
 
-                      const msg = encodeURIComponent(
-                        `Hi, I'm interested in this property. Could you please share more details?`
-                      );
-
-                      window.open(`https://wa.me/${phone}?text=${msg}`, "_blank", "noopener,noreferrer");
-                    }}
-                  >
-                    <FaWhatsapp className="lop-action-ico" />
-                  </button>
+                  {(p.developerName || p.developer) && (
+                    <div className="lop-badge lop-badge--black">
+                      {p.developerName || p.developer}
+                    </div>
+                  )}
                 </div>
               </div>
-            </div>
-          </Link>
-        ))}
+
+              <div className="lop-body">
+                <h3 className="lop-card-title">{p.title || "Off-plan Property"}</h3>
+
+                <div className="lop-meta">
+                  <div className="lop-meta-row">
+                    <FaMapMarkerAlt className="lop-mini" />
+                    <span>
+                      {p.location ||
+                        [p.country, p.city, p.area].filter(Boolean).join(", ") ||
+                        "-"}
+                    </span>
+                  </div>
+
+                  <div className="lop-meta-row">
+                    <FaRegCircle className="lop-mini" />
+                    <span>Payment Plan: {p.paymentPlan || "-"}</span>
+                  </div>
+                </div>
+
+                <div className="lop-line" />
+
+                <div className="lop-bottom">
+                  <span className="lop-from">{formatFromPrice(p)}</span>
+
+                  <div className="lop-actions">
+                    <button
+                      className="lop-ico-btn"
+                      aria-label="Schedule a call"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+
+                        const agentId =
+                          p?.assignedAgent?.id ||
+                          p?.assignedAgentId ||
+                          p?.agent?.id ||
+                          p?.agentId ||
+                          "";
+
+                        const listingId = p?.id || "";
+
+                        if (!agentId) {
+                          window.location.href = "/schedule-call";
+                          return;
+                        }
+
+                        window.location.href = `/schedule-call?agentId=${encodeURIComponent(
+                          agentId
+                        )}&listingId=${encodeURIComponent(listingId)}`;
+                      }}
+                    >
+                      <FaCalendarAlt className="lop-action-ico" />
+                    </button>
+
+                    <button
+                      className="lop-ico-btn"
+                      aria-label="WhatsApp agent"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+
+                        const phone = pickAgentPhone(p);
+                        if (!phone) return;
+
+                        const msg = encodeURIComponent(
+                          `Hi, I'm interested in this property. Could you please share more details?`
+                        );
+
+                        window.open(
+                          `https://wa.me/${phone}?text=${msg}`,
+                          "_blank",
+                          "noopener,noreferrer"
+                        );
+                      }}
+                    >
+                      <FaWhatsapp className="lop-action-ico" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </Link>
+          );
+        })}
       </div>
 
       {maxIndex > 0 && (
         <div className="lop-section-dots" aria-hidden="true">
           {Array.from({ length: maxIndex + 1 }).map((_, i) => (
-            <span key={i} className={"lop-section-dot" + (i === index ? " is-active" : "")} />
+            <span
+              key={i}
+              className={"lop-section-dot" + (i === index ? " is-active" : "")}
+            />
           ))}
         </div>
       )}
