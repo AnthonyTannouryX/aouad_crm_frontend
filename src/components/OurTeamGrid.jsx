@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import "./ourTeamGrid.css";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:4000/api";
@@ -23,6 +24,7 @@ export default function OurTeamGrid() {
                 // ✅ backend already ordered by sortOrder asc
                 const mapped = items.map((a) => ({
                     id: a.id,
+                    slug: a.slug || String(a.id), // ✅ use slug if exists
                     name: a.fullName || "Unnamed",
                     role: a.title || "Property Consultant",
                     img: a.photoUrl || "/placeholder-agent.jpg",
@@ -55,7 +57,14 @@ export default function OurTeamGrid() {
 
                 <div className="teamGrid-grid">
                     {team.map((p) => (
-                        <article className="teamGrid-card" key={p.id}>
+                        <Link
+                            key={p.slug}
+                            to={`/team/${p.slug}`}
+                            className="teamGrid-card"
+                            onClick={() => window.scrollTo(0, 0)}
+                            aria-label={`Open team member: ${p.name}`}
+                            style={{ textDecoration: "none", color: "inherit" }}
+                        >
                             <div className="teamGrid-imgWrap">
                                 <img
                                     className="teamGrid-img"
@@ -71,7 +80,7 @@ export default function OurTeamGrid() {
                                 <div className="teamGrid-name">{p.name}</div>
                                 <div className="teamGrid-role">{p.role}</div>
                             </div>
-                        </article>
+                        </Link>
                     ))}
                 </div>
 
