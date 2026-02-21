@@ -40,11 +40,21 @@ function xNumSafe(v) {
 }
 
 function formatPrice(p) {
-  const n = p?.priceFrom ?? p?.startingPrice ?? null;
-  if (n == null || n === "") return "Price on request";
-  const num = Number(n);
-  if (Number.isNaN(num)) return "Price on request";
-  return `From ${p?.currency || "USD"} ${num.toLocaleString()}`;
+  const value = p?.priceFrom ?? p?.startingPrice ?? p?.price ?? null;
+  if (value == null || value === "") return "Price on request";
+
+  const num = Number(value);
+  if (Number.isNaN(num) || num <= 0) return "Price on request";
+
+  const currency = p?.currency || "USD";
+
+  // ✅ RENT = fixed monthly price
+  if (p?.listingType === "FOR_RENT") {
+    return `${currency} ${num.toLocaleString()} / month`;
+  }
+
+  // ✅ SALE / OFF-PLAN
+  return `From ${currency} ${num.toLocaleString()}`;
 }
 
 function areaLabel(p) {
@@ -68,6 +78,57 @@ function statusLabel(p) {
   if (p?.listingType === "FOR_SALE") return "For Sale";
   if (p?.listingType === "OFF_PLAN") return "Off-Plan";
   return "Listing";
+}
+
+/** ✅ NEW: derive a location label from whatever backend returns */
+function pickLocationLabel(p) {
+  const s = (v) => String(v || "").trim();
+
+  // common fields
+  const loc =
+    s(p?.locationLabel) ||
+    s(p?.location) ||
+    s(p?.community) ||
+    s(p?.area) ||
+    s(p?.city) ||
+    s(p?.addressText) ||
+    s(p?.address);
+
+  if (loc) return loc;
+
+  // last resort: build from pieces
+  const parts = [s(p?.area), s(p?.city), s(p?.country)].filter(Boolean);
+  return parts.length ? parts.join(", ") : "-";
+}
+
+/** ✅ NEW: derive a main image from ListingImage[] or other shapes */
+function pickMainImage(p) {
+  // already prepared by some endpoints
+  if (p?.mainImageUrl) return p.mainImageUrl;
+  if (p?.coverImageUrl) return p.coverImageUrl;
+  if (p?.heroImageUrl) return p.heroImageUrl;
+  if (p?.imageUrl) return p.imageUrl;
+
+  // Prisma ListingImage[]
+  const imgs = Array.isArray(p?.images) ? p.images : [];
+  const cover =
+    imgs.find((x) => x?.isCover)?.url ||
+    imgs.slice().sort((a, b) => (a?.order ?? 0) - (b?.order ?? 0))[0]?.url;
+
+  if (cover) return cover;
+
+  // other possible arrays
+  const gallery = Array.isArray(p?.gallery) ? p.gallery : [];
+  const media = Array.isArray(p?.media) ? p.media : [];
+
+  const firstFrom = (arr) => {
+    if (!arr.length) return "";
+    const v = arr[0];
+    if (typeof v === "string") return v;
+    return v?.url || v?.src || v?.image || "";
+  };
+
+  return firstFrom(gallery) || firstFrom(media) || "";
 }
 
 export default function ListingsPage() {
@@ -173,8 +234,8 @@ export default function ListingsPage() {
   const locationOptions = useMemo(() => {
     const set = new Set();
     rawItems.forEach((p) => {
-      const v = (p?.location || "").trim();
-      if (v) set.add(v);
+      const v = pickLocationLabel(p);
+      if (v && v !== "-") set.add(v);
     });
     return ["Any location", ...Array.from(set).sort((a, b) => a.localeCompare(b))];
   }, [rawItems]);
@@ -203,12 +264,7 @@ export default function ListingsPage() {
 
     // location
     if (locationFilter !== "Any location") {
-      list = list.filter(
-        (p) =>
-          String(p?.location || "")
-            .trim()
-            .toLowerCase() === locationFilter.toLowerCase()
-      );
+      list = list.filter((p) => pickLocationLabel(p).toLowerCase() === locationFilter.toLowerCase());
     }
 
     // type
@@ -240,7 +296,7 @@ export default function ListingsPage() {
 
     if (hasMin || hasMax) {
       list = list.filter((p) => {
-        const n = xNumSafe(p?.priceFrom ?? p?.startingPrice);
+        const n = xNumSafe(p?.priceFrom ?? p?.startingPrice ?? p?.price);
         if (!Number.isFinite(n) || n <= 0) return false; // "price on request" excluded when filtering
         if (hasMin && n < min) return false;
         if (hasMax && n > max) return false;
@@ -252,14 +308,14 @@ export default function ListingsPage() {
     if (sort === "Price: Low to High") {
       list.sort(
         (a, b) =>
-          xNumSafe(a?.priceFrom ?? a?.startingPrice) -
-          xNumSafe(b?.priceFrom ?? b?.startingPrice)
+          xNumSafe(a?.priceFrom ?? a?.startingPrice ?? a?.price) -
+          xNumSafe(b?.priceFrom ?? b?.startingPrice ?? b?.price)
       );
     } else if (sort === "Price: High to Low") {
       list.sort(
         (a, b) =>
-          xNumSafe(b?.priceFrom ?? b?.startingPrice) -
-          xNumSafe(a?.priceFrom ?? a?.startingPrice)
+          xNumSafe(b?.priceFrom ?? b?.startingPrice ?? b?.price) -
+          xNumSafe(a?.priceFrom ?? a?.startingPrice ?? a?.price)
       );
     }
 
@@ -281,12 +337,12 @@ export default function ListingsPage() {
       type: typeLabel(p),
       status: statusLabel(p),
       price: formatPrice(p),
-      location: p.location || "-",
+      location: pickLocationLabel(p),
       beds: p.bedrooms ?? "-",
       baths: p.bathrooms ?? "-",
       parking: p.parking ?? "-",
       area: areaLabel(p),
-      img: p.mainImageUrl || "",
+      img: pickMainImage(p),
     }));
   }, [filteredRaw]);
 
@@ -472,7 +528,11 @@ export default function ListingsPage() {
           <div className="lp2-dgrid">
             <div className="lp2-field">
               <div className="lp2-lbl">Choose a community</div>
-              <DrawerSelect value={locationFilter} onChange={setLocationFilter} options={locationOptions} />
+              <DrawerSelect
+                value={locationFilter}
+                onChange={setLocationFilter}
+                options={locationOptions}
+              />
             </div>
 
             <div className="lp2-field">
@@ -637,6 +697,7 @@ function PriceRangePill({ icon, min, max, onMin, onMax }) {
                 onMax("");
               }}
             >
+              Clear
             </button>
             <button type="button" className="lp2-priceOk" onClick={() => setOpen(false)}>
               Apply

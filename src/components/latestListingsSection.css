@@ -577,3 +577,14 @@
     text-decoration: none;
     color: inherit;
 }
+
+
+/* ===== Mobile: keep dropdown away from screen edge ===== */
+@media (max-width: 640px) {
+    .ll-menu {
+        right: 7px;
+        /* space from right edge */
+        left: auto;
+        /* keep it anchored to the button side */
+    }
+}

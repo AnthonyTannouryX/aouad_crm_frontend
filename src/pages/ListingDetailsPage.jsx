@@ -51,6 +51,24 @@ function formatInt(n) {
   }
 }
 
+/** ✅ NEW: format label by listing type
+ * OFF_PLAN => From USD 350,000
+ * FOR_SALE => USD 350,000
+ * FOR_RENT => USD 1,500 / month
+ */
+function formatPriceLabel({ listingType, currency, amount }) {
+  const a = toMoneyNumber(amount);
+  if (!a || a <= 0) return "Price on request";
+
+  const ccy = (currency || "USD").toUpperCase();
+  const num = formatInt(a);
+
+  if (listingType === "FOR_RENT") return `${ccy} ${num} / month`;
+  if (listingType === "OFF_PLAN") return `From ${ccy} ${num}`;
+  // FOR_SALE and default
+  return `${ccy} ${num}`;
+}
+
 /**
  * Convert amount between currencies using EUR pivot.
  * ratesEurBased: { USD: 1.09, AED: 4.01 } where base=EUR.
@@ -150,7 +168,7 @@ export default function ListingDetailsPage() {
   const [fx, setFx] = useState({ loading: true, err: "", rates: {} });
 
   /* =========================
-     ✅ NEW: Schedule-a-call lead form state
+     ✅ Schedule-a-call lead form state
   ========================= */
   const [leadForm, setLeadForm] = useState({
     firstName: "",
@@ -400,9 +418,12 @@ export default function ListingDetailsPage() {
 
   if (!item) return null;
 
-  const agentName = item.agent?.fullName || "Agent Name";
-  const agentTitle = item.agent?.title || "Property Consultant";
-  const agentPhoto = item.agent?.photoUrl || "https://via.placeholder.com/64x64?text=Agent";
+  // ✅ show assignedAgent OR agent
+  const agentObj = item.assignedAgent || item.agent || null;
+
+  const agentName = agentObj?.fullName || "Agent Name";
+  const agentTitle = agentObj?.title || "Property Consultant";
+  const agentPhoto = agentObj?.photoUrl || "https://via.placeholder.com/64x64?text=Agent";
   const sizeLabel = formatSize(item);
 
   const agentId = pickAgentId(item);
@@ -510,7 +531,11 @@ export default function ListingDetailsPage() {
             <div className="ld-fromRow">
               <div className="ld-fromText">
                 {baseAmount && baseAmount > 0 && displayPrice
-                  ? `From ${displayPrice.currency} ${formatInt(displayPrice.amount)}`
+                  ? formatPriceLabel({
+                    listingType: item?.listingType,
+                    currency: displayPrice.currency,
+                    amount: displayPrice.amount,
+                  })
                   : "Price on request"}
               </div>
 
@@ -529,9 +554,7 @@ export default function ListingDetailsPage() {
                     ))}
                   </div>
 
-                  <div style={{ fontSize: 12, opacity: 0.65, marginTop: 6 }}>
-
-                  </div>
+                  <div style={{ fontSize: 12, opacity: 0.65, marginTop: 6 }}></div>
                 </div>
               ) : null}
             </div>
@@ -659,7 +682,6 @@ export default function ListingDetailsPage() {
 
                 <div className="ld-divider" />
 
-                {/* ✅ FIXED: This now submits to backend and creates a Lead */}
                 <form className="ld-form" onSubmit={onSubmitLead}>
                   <div className="ld-row2">
                     <label className="ld-field">
