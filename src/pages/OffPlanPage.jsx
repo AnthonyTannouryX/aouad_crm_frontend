@@ -10,6 +10,8 @@ import {
   FaTimes,
   FaTag,
   FaStar,
+  FaWhatsapp,
+  FaCalendarAlt,
 } from "react-icons/fa";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:4000/api";
@@ -51,13 +53,7 @@ function formatPrice(p) {
 }
 
 function titleLabel(p) {
-  return (
-    p?.title ||
-    p?.name ||
-    p?.projectName ||
-    p?.developer ||
-    "Off-Plan Project"
-  );
+  return p?.title || p?.name || p?.projectName || p?.developer || "Off-Plan Project";
 }
 
 function handoverLabel(p) {
@@ -136,8 +132,7 @@ export default function OffPlanPage() {
 
         const res = await fetch(url.toString());
         const data = await res.json().catch(() => ({}));
-        if (!res.ok)
-          throw new Error(data?.error || "Failed to load off-plan listings");
+        if (!res.ok) throw new Error(data?.error || "Failed to load off-plan listings");
         if (!alive) return;
 
         const list = Array.isArray(data) ? data : data.items;
@@ -181,17 +176,13 @@ export default function OffPlanPage() {
     let list = [...rawItems];
 
     // enforce OFF_PLAN again (safety)
-    list = list.filter(
-      (p) => String(p?.listingType || "").toUpperCase() === "OFF_PLAN"
-    );
+    list = list.filter((p) => String(p?.listingType || "").toUpperCase() === "OFF_PLAN");
 
     // location
     if (locationFilter !== "Any location") {
       const want = locationFilter.trim().toLowerCase();
       list = list.filter((p) => {
-        const v = String(p?.location || p?.community || p?.area || "")
-          .trim()
-          .toLowerCase();
+        const v = String(p?.location || p?.community || p?.area || "").trim().toLowerCase();
         return v === want;
       });
     }
@@ -200,9 +191,7 @@ export default function OffPlanPage() {
     if (developer !== "Any developer") {
       const want = developer.trim().toLowerCase();
       list = list.filter((p) => {
-        const v = String(p?.developer || p?.developerName || "")
-          .trim()
-          .toLowerCase();
+        const v = String(p?.developer || p?.developerName || "").trim().toLowerCase();
         return v === want;
       });
     }
@@ -225,14 +214,12 @@ export default function OffPlanPage() {
     if (sort === "Price: Low to High") {
       list.sort(
         (a, b) =>
-          xNumSafe(a?.priceFrom ?? a?.startingPrice) -
-          xNumSafe(b?.priceFrom ?? b?.startingPrice)
+          xNumSafe(a?.priceFrom ?? a?.startingPrice) - xNumSafe(b?.priceFrom ?? b?.startingPrice)
       );
     } else if (sort === "Price: High to Low") {
       list.sort(
         (a, b) =>
-          xNumSafe(b?.priceFrom ?? b?.startingPrice) -
-          xNumSafe(a?.priceFrom ?? a?.startingPrice)
+          xNumSafe(b?.priceFrom ?? b?.startingPrice) - xNumSafe(a?.priceFrom ?? a?.startingPrice)
       );
     }
 
@@ -253,6 +240,37 @@ export default function OffPlanPage() {
     setPriceMin("");
     setPriceMax("");
     setDeveloper("Any developer");
+  };
+
+  const onScheduleCall = (p, e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const agentId = pickAgentId(p);
+    const listingId = p?.id || "";
+
+    if (!agentId) {
+      window.location.href = "/schedule-call";
+      return;
+    }
+
+    window.location.href = `/schedule-call?agentId=${encodeURIComponent(agentId)}&listingId=${encodeURIComponent(
+      listingId
+    )}`;
+  };
+
+  const onWhatsApp = (p, e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const phone = pickAgentPhone(p);
+    if (!phone) return;
+
+    const msg = encodeURIComponent(
+      `Hi, I'm interested in this property (${titleLabel(p)}). Could you please share more details?`
+    );
+
+    window.open(`https://wa.me/${phone}?text=${msg}`, "_blank", "noopener,noreferrer");
   };
 
   return (
@@ -280,19 +298,9 @@ export default function OffPlanPage() {
             options={locationOptions}
           />
 
-          <PriceRangePill
-            icon={<FaTag />}
-            min={priceMin}
-            max={priceMax}
-            onMin={setPriceMin}
-            onMax={setPriceMax}
-          />
+          <PriceRangePill icon={<FaTag />} min={priceMin} max={priceMax} onMin={setPriceMin} onMax={setPriceMax} />
 
-          <button
-            className="op-more"
-            type="button"
-            onClick={() => setFiltersOpen(true)}
-          >
+          <button className="op-more" type="button" onClick={() => setFiltersOpen(true)}>
             More Filters <FaSlidersH />
           </button>
         </div>
@@ -306,11 +314,7 @@ export default function OffPlanPage() {
           <div className="op-actions">
             <div className="op-sortPill">
               <span className="op-sortIcon">⇅</span>
-              <select
-                className="op-sortSel"
-                value={sort}
-                onChange={(e) => setSort(e.target.value)}
-              >
+              <select className="op-sortSel" value={sort} onChange={(e) => setSort(e.target.value)}>
                 <option>Price: Low to High</option>
                 <option>Price: High to Low</option>
               </select>
@@ -333,6 +337,8 @@ export default function OffPlanPage() {
               const locText = p?.location || p?.community || p?.area || "-";
               const handover = handoverLabel(p);
 
+              const hasPhone = !!pickAgentPhone(p);
+
               return (
                 <Link
                   key={p.id}
@@ -352,10 +358,7 @@ export default function OffPlanPage() {
                         }}
                       />
                     ) : (
-                      <div
-                        className="op-img"
-                        style={{ background: "rgba(15,23,42,0.08)" }}
-                      />
+                      <div className="op-img" style={{ background: "rgba(15,23,42,0.08)" }} />
                     )}
 
                     <div className="op-badges">
@@ -363,11 +366,7 @@ export default function OffPlanPage() {
                         <FaStar className="op-star" /> Featured
                       </span>
 
-                      {handover ? (
-                        <span className="op-badge op-badge--handover">
-                          Handover {handover}
-                        </span>
-                      ) : null}
+                      {handover ? <span className="op-badge op-badge--handover">Handover {handover}</span> : null}
 
                       <span className="op-badge op-badge--dev">{dev}</span>
                     </div>
@@ -387,22 +386,28 @@ export default function OffPlanPage() {
 
                     <div className="op-bottom">
                       <div className="op-price">{formatPrice(p)}</div>
+
+                      {/* ✅ NEW: Calendar + WhatsApp icons (like LatestOffPlanSection) */}
                       <div className="op-ctas">
                         <button
                           className="op-ico"
                           type="button"
-                          aria-label="CTA 1"
-                          onClick={(e) => e.preventDefault()}
+                          aria-label="Schedule a call"
+                          title="Schedule a call"
+                          onClick={(e) => onScheduleCall(p, e)}
                         >
-                          <span style={{ fontWeight: 700 }}>i</span>
+                          <FaCalendarAlt />
                         </button>
+
                         <button
-                          className="op-ico"
+                          className={"op-ico" + (hasPhone ? "" : " is-disabled")}
                           type="button"
-                          aria-label="CTA 2"
-                          onClick={(e) => e.preventDefault()}
+                          aria-label="WhatsApp agent"
+                          title={hasPhone ? "WhatsApp agent" : "WhatsApp number not set"}
+                          disabled={!hasPhone}
+                          onClick={(e) => onWhatsApp(p, e)}
                         >
-                          <span style={{ fontWeight: 700 }}>↗</span>
+                          <FaWhatsapp />
                         </button>
                       </div>
                     </div>
@@ -415,23 +420,12 @@ export default function OffPlanPage() {
       </div>
 
       {/* DRAWER */}
-      <div
-        className={"op-dim" + (filtersOpen ? " is-open" : "")}
-        onClick={() => setFiltersOpen(false)}
-      />
+      <div className={"op-dim" + (filtersOpen ? " is-open" : "")} onClick={() => setFiltersOpen(false)} />
 
-      <aside
-        className={"op-drawer" + (filtersOpen ? " is-open" : "")}
-        aria-hidden={!filtersOpen}
-      >
+      <aside className={"op-drawer" + (filtersOpen ? " is-open" : "")} aria-hidden={!filtersOpen}>
         <div className="op-drawerTop">
           <h3 className="op-drawerTitle">All filters</h3>
-          <button
-            className="op-x"
-            type="button"
-            aria-label="Close"
-            onClick={() => setFiltersOpen(false)}
-          >
+          <button className="op-x" type="button" aria-label="Close" onClick={() => setFiltersOpen(false)}>
             <FaTimes />
           </button>
         </div>
@@ -440,20 +434,12 @@ export default function OffPlanPage() {
           <div className="op-dgrid">
             <div className="op-field">
               <div className="op-lbl">Choose a community</div>
-              <DrawerSelect
-                value={locationFilter}
-                onChange={setLocationFilter}
-                options={locationOptions}
-              />
+              <DrawerSelect value={locationFilter} onChange={setLocationFilter} options={locationOptions} />
             </div>
 
             <div className="op-field">
               <div className="op-lbl">Choose a developer</div>
-              <DrawerSelect
-                value={developer}
-                onChange={setDeveloper}
-                options={developerOptions}
-              />
+              <DrawerSelect value={developer} onChange={setDeveloper} options={developerOptions} />
             </div>
 
             <div className="op-field">
@@ -489,11 +475,7 @@ export default function OffPlanPage() {
           <button className="op-clear" type="button" onClick={clearAll}>
             Clear all
           </button>
-          <button
-            className="op-apply"
-            type="button"
-            onClick={() => setFiltersOpen(false)}
-          >
+          <button className="op-apply" type="button" onClick={() => setFiltersOpen(false)}>
             Filter properties
           </button>
         </div>
@@ -509,11 +491,7 @@ function SelectPill({ icon, value, onChange, options }) {
         {icon}
       </span>
 
-      <select
-        className="op-pillSel"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-      >
+      <select className="op-pillSel" value={value} onChange={(e) => onChange(e.target.value)}>
         {options.map((o) => (
           <option key={o} value={o}>
             {o}
@@ -529,11 +507,7 @@ function SelectPill({ icon, value, onChange, options }) {
 function DrawerSelect({ value, onChange, options }) {
   return (
     <div className="op-dselWrap">
-      <select
-        className="op-dsel"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-      >
+      <select className="op-dsel" value={value} onChange={(e) => onChange(e.target.value)}>
         {options.map((o) => (
           <option key={o} value={o}>
             {o}
@@ -620,11 +594,7 @@ function PriceRangePill({ icon, min, max, onMin, onMax }) {
             >
               Clear
             </button>
-            <button
-              type="button"
-              className="op-priceOk"
-              onClick={() => setOpen(false)}
-            >
+            <button type="button" className="op-priceOk" onClick={() => setOpen(false)}>
               Apply
             </button>
           </div>
@@ -632,4 +602,25 @@ function PriceRangePill({ icon, min, max, onMin, onMax }) {
       ) : null}
     </div>
   );
+}
+
+/* ===== helpers copied from your LatestOffPlanSection behavior ===== */
+function pickAgentId(p) {
+  return p?.assignedAgent?.id || p?.assignedAgentId || p?.agent?.id || p?.agentId || "";
+}
+
+function pickAgentPhone(p) {
+  const raw =
+    p?.assignedAgent?.phone ||
+    p?.assignedAgent?.whatsapp ||
+    p?.agent?.phone ||
+    p?.agent?.whatsapp ||
+    p?.agentPhone ||
+    p?.whatsapp ||
+    p?.phone ||
+    "";
+
+  const cleaned = String(raw).trim().replace(/[^\d+]/g, "");
+  if (!cleaned) return "";
+  return cleaned.startsWith("+") ? cleaned.slice(1) : cleaned;
 }

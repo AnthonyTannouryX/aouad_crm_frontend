@@ -981,3 +981,45 @@
     align-items: center;
     margin-bottom: 34px;
 }
+
+/* ===== Bigger + darker CTA icons ===== */
+.op-ico-btn {
+    width: 46px;
+    /* ⬆️ bigger */
+    height: 46px;
+    /* ⬆️ bigger */
+    border-radius: 14px;
+
+    border: 1px solid rgba(15, 23, 42, 0.18);
+    background: rgba(15, 23, 42, 0.08);
+    /* darker base */
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    cursor: pointer;
+    transition: background 0.18s ease, border-color 0.18s ease, transform 0.12s ease;
+}
+
+.op-ico-btn:hover {
+    background: rgba(15, 23, 42, 0.14);
+    /* darker hover */
+    border-color: rgba(15, 23, 42, 0.28);
+    transform: translateY(-1px);
+}
+
+/* icon itself */
+.op-action-ico {
+    width: 20px;
+    /* ⬆️ icon size */
+    height: 20px;
+    color: rgb(17, 24, 39);
+    /* darker icon */
+}
+
+/* optional: pressed feel */
+.op-ico-btn:active {
+    transform: translateY(0);
+    background: rgba(15, 23, 42, 0.18);
+}
