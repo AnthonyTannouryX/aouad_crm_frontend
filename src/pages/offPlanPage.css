@@ -1023,3 +1023,58 @@
     transform: translateY(0);
     background: rgba(15, 23, 42, 0.18);
 }
+
+/* ===== OffPlanPage: CTA icons (match LatestOffPlanSection style) ===== */
+.op-ctas {
+    display: inline-flex;
+    gap: 10px;
+}
+
+/* button box */
+.op-ico {
+    width: 46px;
+    height: 46px;
+    border-radius: 14px;
+
+    border: 1px solid rgba(15, 23, 42, 0.18);
+    background: rgba(15, 23, 42, 0.08);
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    cursor: pointer;
+    transition: background 0.18s ease, border-color 0.18s ease, transform 0.12s ease;
+}
+
+.op-ico:hover {
+    background: rgba(15, 23, 42, 0.14);
+    border-color: rgba(15, 23, 42, 0.28);
+    transform: translateY(-1px);
+}
+
+.op-ico:active {
+    transform: translateY(0);
+    background: rgba(15, 23, 42, 0.18);
+}
+
+/* make the react-icons bigger + darker */
+.op-ico svg {
+    width: 20px;
+    height: 20px;
+    color: rgb(17, 24, 39);
+}
+
+/* disabled WhatsApp (when phone missing) */
+.op-ico.is-disabled,
+.op-ico:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.op-ico.is-disabled:hover,
+.op-ico:disabled:hover {
+    background: rgba(15, 23, 42, 0.08);
+    border-color: rgba(15, 23, 42, 0.18);
+}
