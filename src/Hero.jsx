@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { FaChevronDown, FaSearch } from "react-icons/fa";
 import "./hero.css";
 
-import img1 from "./assets/carousel1.jpg";
+import img1 from "./assets/carousel2.jpg";
 import img2 from "./assets/carousel2.jpg";
 import img3 from "./assets/carousel3.jpg";
 import img4 from "./assets/carousel3.jpg";
