@@ -99,6 +99,7 @@ export default function AddListingPage() {
   // edit mode
   const [editingId, setEditingId] = useState(null);
   const [editingCoverUrl, setEditingCoverUrl] = useState("");
+  const [editingGalleryImages, setEditingGalleryImages] = useState([]); // ✅ NEW: [{id,url}...]
 
   const [form, setForm] = useState({
     country: "dubai",
@@ -213,6 +214,7 @@ export default function AddListingPage() {
     setError("");
     setEditingId(null);
     setEditingCoverUrl("");
+    setEditingGalleryImages([]); // ✅ NEW
 
     setForm({
       country: "dubai",
@@ -263,6 +265,17 @@ export default function AddListingPage() {
     setError("");
     setEditingId(listing.id);
     setEditingCoverUrl(coverUrl(listing) || "");
+
+    // ✅ NEW: show all existing images for this listing (excluding cover)
+    const imgs = Array.isArray(listing?.images) ? listing.images : [];
+    const cover = imgs.find((x) => x.isCover) || imgs[0] || null;
+
+    setEditingGalleryImages(
+      imgs
+        .filter((x) => x && x.id && x.url)
+        .filter((x) => (cover?.url ? x.url !== cover.url : true))
+        .map((x) => ({ id: x.id, url: x.url }))
+    );
 
     setForm({
       country: listing.country || "dubai",
@@ -367,6 +380,43 @@ export default function AddListingPage() {
   const removeGalleryItem = (idx) =>
     setGalleryFiles((prev) => prev.filter((_, i) => i !== idx));
   const clearAllGallery = () => setGalleryFiles([]);
+
+  // ✅ NEW: delete an EXISTING DB image (not the local preview)
+  const deleteExistingImage = async (imageId) => {
+    if (!editingId || !imageId) return;
+    const ok = window.confirm("Delete this photo?");
+    if (!ok) return;
+
+    try {
+      const token = tokenOrThrow();
+
+      const res = await fetch(
+        `${API_BASE}/uploads/listing/${editingId}/images/${imageId}`,
+        {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || "Failed to delete image");
+
+      // remove from modal gallery
+      setEditingGalleryImages((prev) => prev.filter((x) => x.id !== imageId));
+
+      // also update the list row locally so counts stay correct
+      setItems((prev) =>
+        prev.map((l) => {
+          if (l.id !== editingId) return l;
+          const imgs = Array.isArray(l.images) ? l.images : [];
+          return { ...l, images: imgs.filter((im) => im.id !== imageId) };
+        })
+      );
+    } catch (e) {
+      console.error(e);
+      setError(e.message || "Failed to delete image");
+    }
+  };
 
   useEffect(() => {
     if (!coverFile) {
@@ -770,7 +820,12 @@ export default function AddListingPage() {
                     {coverPreview ? (
                       <img className="al-previewImg" src={coverPreview} alt="Cover preview" />
                     ) : isEdit && editingCoverUrl ? (
-                      <img className="al-previewImg" src={editingCoverUrl} alt="Current cover" onError={(e) => (e.currentTarget.style.display = "none")} />
+                      <img
+                        className="al-previewImg"
+                        src={editingCoverUrl}
+                        alt="Current cover"
+                        onError={(e) => (e.currentTarget.style.display = "none")}
+                      />
                     ) : (
                       <div className="al-dropInner">
                         <div className="al-dropTitle">{isEdit ? "Keep current cover or pick a new one" : "Choose cover image"}</div>
@@ -798,6 +853,7 @@ export default function AddListingPage() {
 
                   <input className="al-file" type="file" accept="image/*" multiple onChange={onPickGallery} />
 
+                  {/* ✅ NEW: show either NEW picks, or EXISTING DB gallery with X delete */}
                   {galleryPreviews.length > 0 ? (
                     <div className="al-galleryGrid">
                       {galleryPreviews.map((p, idx) => (
@@ -814,9 +870,33 @@ export default function AddListingPage() {
                         </div>
                       ))}
                     </div>
+                  ) : isEdit && editingGalleryImages.length > 0 ? (
+                    <div className="al-galleryGrid">
+                      {editingGalleryImages.map((img, idx) => (
+                        <div key={`${img.id}-${idx}`} className="al-galleryItem">
+                          <img
+                            src={img.url}
+                            alt={`Gallery ${idx + 1}`}
+                            onError={(e) => {
+                              e.currentTarget.style.display = "none";
+                            }}
+                          />
+                          <button
+                            type="button"
+                            className="al-galleryRemove"
+                            onClick={() => deleteExistingImage(img.id)}
+                            aria-label="Delete image"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                    </div>
                   ) : (
                     <div className="al-emptyGallery">
-                      {isEdit ? "No new gallery images selected (existing gallery stays as-is)." : "No gallery images selected."}
+                      {isEdit
+                        ? "No gallery images for this listing yet."
+                        : "No gallery images selected."}
                     </div>
                   )}
                 </div>
