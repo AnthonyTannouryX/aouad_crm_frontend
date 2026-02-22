@@ -65,7 +65,6 @@ function formatPriceLabel({ listingType, currency, amount }) {
 
   if (listingType === "FOR_RENT") return `${ccy} ${num} / month`;
   if (listingType === "OFF_PLAN") return `From ${ccy} ${num}`;
-  // FOR_SALE and default
   return `${ccy} ${num}`;
 }
 

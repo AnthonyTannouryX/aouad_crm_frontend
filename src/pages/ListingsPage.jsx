@@ -39,6 +39,25 @@ function xNumSafe(v) {
   return Number.isFinite(n) ? n : 0;
 }
 
+/**
+ * ✅ Normalize "Ashrafieh", "ASHRAFIEH", "ashrafieh (maska&ghabeh)" etc
+ * so dropdown + filtering treat them as the same.
+ */
+function normalizeLocation(v) {
+  return String(v || "")
+    .toLowerCase()
+    .trim()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9\s]/g, "") // remove symbols like (), &, -
+    .replace(/\s+/g, " ");
+}
+
+// Optional: make dropdown labels look clean and consistent
+function titleCase(s) {
+  return String(s || "").replace(/\w\S*/g, (t) => t[0].toUpperCase() + t.slice(1).toLowerCase());
+}
+
 function formatPrice(p) {
   const value = p?.priceFrom ?? p?.startingPrice ?? p?.price ?? null;
   if (value == null || value === "") return "Price on request";
@@ -46,14 +65,19 @@ function formatPrice(p) {
   const num = Number(value);
   if (Number.isNaN(num) || num <= 0) return "Price on request";
 
-  const currency = p?.currency || "USD";
-
-  // ✅ RENT = fixed monthly price
+  // ✅ RENT = monthly
   if (p?.listingType === "FOR_RENT") {
+    const currency = (p?.currency || "USD").toUpperCase();
     return `${currency} ${num.toLocaleString()} / month`;
   }
 
-  // ✅ SALE / OFF-PLAN
+  // ✅ SALE = USD only (no "From")
+  if (p?.listingType === "FOR_SALE") {
+    return `USD ${num.toLocaleString()}`;
+  }
+
+  // ✅ OFF_PLAN (and any other) = From + listing currency
+  const currency = (p?.currency || "USD").toUpperCase();
   return `From ${currency} ${num.toLocaleString()}`;
 }
 
@@ -80,7 +104,7 @@ function statusLabel(p) {
   return "Listing";
 }
 
-/** ✅ NEW: derive a location label from whatever backend returns */
+/** ✅ derive a location label from whatever backend returns */
 function pickLocationLabel(p) {
   const s = (v) => String(v || "").trim();
 
@@ -101,7 +125,7 @@ function pickLocationLabel(p) {
   return parts.length ? parts.join(", ") : "-";
 }
 
-/** ✅ NEW: derive a main image from ListingImage[] or other shapes */
+/** ✅ derive a main image from ListingImage[] or other shapes */
 function pickMainImage(p) {
   // already prepared by some endpoints
   if (p?.mainImageUrl) return p.mainImageUrl;
@@ -230,14 +254,22 @@ export default function ListingsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [country, listingType, loc.search]);
 
-  // Build dropdown options dynamically from data
+  // ✅ Build dropdown options dynamically from data (DEDUPED by normalized key)
   const locationOptions = useMemo(() => {
-    const set = new Set();
+    const map = new Map(); // normalized -> display label
+
     rawItems.forEach((p) => {
-      const v = pickLocationLabel(p);
-      if (v && v !== "-") set.add(v);
+      const raw = pickLocationLabel(p);
+      if (!raw || raw === "-") return;
+
+      const key = normalizeLocation(raw);
+      if (!key) return;
+
+      // keep first nice label (and make it consistent)
+      if (!map.has(key)) map.set(key, titleCase(raw.trim()));
     });
-    return ["Any location", ...Array.from(set).sort((a, b) => a.localeCompare(b))];
+
+    return ["Any location", ...Array.from(map.values()).sort((a, b) => a.localeCompare(b))];
   }, [rawItems]);
 
   const typeOptions = useMemo(() => {
@@ -262,9 +294,10 @@ export default function ListingsPage() {
   const filteredRaw = useMemo(() => {
     let list = [...rawItems];
 
-    // location
+    // ✅ location (case/format-insensitive)
     if (locationFilter !== "Any location") {
-      list = list.filter((p) => pickLocationLabel(p).toLowerCase() === locationFilter.toLowerCase());
+      const selected = normalizeLocation(locationFilter);
+      list = list.filter((p) => normalizeLocation(pickLocationLabel(p)) === selected);
     }
 
     // type
@@ -395,13 +428,7 @@ export default function ListingsPage() {
           />
 
           {/* ✅ custom price range dropdown */}
-          <PriceRangePill
-            icon={<FaTag />}
-            min={priceMin}
-            max={priceMax}
-            onMin={setPriceMin}
-            onMax={setPriceMax}
-          />
+          <PriceRangePill icon={<FaTag />} min={priceMin} max={priceMax} onMin={setPriceMin} onMax={setPriceMax} />
 
           <button className="lp2-more" type="button" onClick={() => setFiltersOpen(true)}>
             More Filters <FaSlidersH />
@@ -417,11 +444,7 @@ export default function ListingsPage() {
           <div className="lp2-actions">
             <div className="lp2-sortPill">
               <span className="lp2-sortIcon">⇅</span>
-              <select
-                className="lp2-sortSel"
-                value={sort}
-                onChange={(e) => setSort(e.target.value)}
-              >
+              <select className="lp2-sortSel" value={sort} onChange={(e) => setSort(e.target.value)}>
                 <option>Recommended</option>
                 <option>Price: Low to High</option>
                 <option>Price: High to Low</option>
@@ -506,20 +529,12 @@ export default function ListingsPage() {
       </div>
 
       {/* DRAWER */}
-      <div
-        className={"lp2-dim" + (filtersOpen ? " is-open" : "")}
-        onClick={() => setFiltersOpen(false)}
-      />
+      <div className={"lp2-dim" + (filtersOpen ? " is-open" : "")} onClick={() => setFiltersOpen(false)} />
 
       <aside className={"lp2-drawer" + (filtersOpen ? " is-open" : "")} aria-hidden={!filtersOpen}>
         <div className="lp2-drawerTop">
           <h3 className="lp2-drawerTitle">All filters</h3>
-          <button
-            className="lp2-x"
-            type="button"
-            aria-label="Close"
-            onClick={() => setFiltersOpen(false)}
-          >
+          <button className="lp2-x" type="button" aria-label="Close" onClick={() => setFiltersOpen(false)}>
             <FaTimes />
           </button>
         </div>
@@ -528,11 +543,7 @@ export default function ListingsPage() {
           <div className="lp2-dgrid">
             <div className="lp2-field">
               <div className="lp2-lbl">Choose a community</div>
-              <DrawerSelect
-                value={locationFilter}
-                onChange={setLocationFilter}
-                options={locationOptions}
-              />
+              <DrawerSelect value={locationFilter} onChange={setLocationFilter} options={locationOptions} />
             </div>
 
             <div className="lp2-field">

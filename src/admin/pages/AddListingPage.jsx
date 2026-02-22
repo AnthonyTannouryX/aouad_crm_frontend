@@ -1,5 +1,5 @@
 // src/admin/pages/AddListingPage.jsx
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import "./AddListingPage.css";
 import LocationPicker from "../components/LocationPicker.jsx";
 
@@ -91,6 +91,9 @@ export default function AddListingPage() {
   const [agents, setAgents] = useState([]);
   const [agentsLoading, setAgentsLoading] = useState(false);
 
+  // ✅ agent filter state (before listings)
+  const [agentFilterId, setAgentFilterId] = useState("ALL");
+
   // modal
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -99,12 +102,17 @@ export default function AddListingPage() {
   // edit mode
   const [editingId, setEditingId] = useState(null);
   const [editingCoverUrl, setEditingCoverUrl] = useState("");
-  const [editingGalleryImages, setEditingGalleryImages] = useState([]); // ✅ NEW: [{id,url}...]
+  const [editingGalleryImages, setEditingGalleryImages] = useState([]); // [{id,url}...]
+
+  // ✅ Area suggestions (REAL DB)
+  const [areaOptions, setAreaOptions] = useState([]);
+  const [areasLoading, setAreasLoading] = useState(false);
+  const areasReqSeq = useRef(0);
 
   const [form, setForm] = useState({
     country: "dubai",
 
-    // ✅ map fields
+    // map fields
     latitude: "",
     longitude: "",
     addressText: "",
@@ -204,17 +212,66 @@ export default function AddListingPage() {
     }
   }
 
+  // ✅ REAL DB fetch for areas (distinct Listing.area)
+  async function loadAreasFromDb({ country, city, q }) {
+    const seq = ++areasReqSeq.current;
+    setAreasLoading(true);
+
+    try {
+      const token = tokenOrThrow();
+
+      const params = new URLSearchParams();
+      if (country) params.set("country", String(country));
+      if (city) params.set("city", String(city));
+      if (q) params.set("q", String(q));
+      params.set("limit", "200");
+
+      const res = await fetch(`${API_BASE}/listings/areas?${params.toString()}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || "Failed to load areas");
+
+      if (seq !== areasReqSeq.current) return; // ignore stale response
+      setAreaOptions(Array.isArray(data?.items) ? data.items : []);
+    } catch (e) {
+      console.error(e);
+      if (seq !== areasReqSeq.current) return;
+      setAreaOptions([]);
+      // don't block the form; just show none
+    } finally {
+      if (seq === areasReqSeq.current) setAreasLoading(false);
+    }
+  }
+
   useEffect(() => {
     loadAgents();
     loadListings();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // ✅ debounce area suggestions whenever modal open + country/city/area changes
+  useEffect(() => {
+    if (!open) return;
+
+    const t = setTimeout(() => {
+      loadAreasFromDb({
+        country: form.country,
+        city: form.city,
+        q: form.area, // search as user types
+      });
+    }, 220);
+
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, form.country, form.city, form.area]);
+
   const resetAll = () => {
     setError("");
     setEditingId(null);
     setEditingCoverUrl("");
-    setEditingGalleryImages([]); // ✅ NEW
+    setEditingGalleryImages([]);
 
     setForm({
       country: "dubai",
@@ -254,6 +311,9 @@ export default function AddListingPage() {
     setGalleryFiles([]);
     setCoverPreview(null);
     setGalleryPreviews([]);
+
+    setAreaOptions([]);
+    setAreasLoading(false);
   };
 
   const openModalCreate = () => {
@@ -266,7 +326,6 @@ export default function AddListingPage() {
     setEditingId(listing.id);
     setEditingCoverUrl(coverUrl(listing) || "");
 
-    // ✅ NEW: show all existing images for this listing (excluding cover)
     const imgs = Array.isArray(listing?.images) ? listing.images : [];
     const cover = imgs.find((x) => x.isCover) || imgs[0] || null;
 
@@ -329,6 +388,8 @@ export default function AddListingPage() {
       ...p,
       country: slug,
       city: c?.name || p.city,
+      // (optional) clear area when country changes
+      // area: "",
     }));
   };
 
@@ -381,7 +442,6 @@ export default function AddListingPage() {
     setGalleryFiles((prev) => prev.filter((_, i) => i !== idx));
   const clearAllGallery = () => setGalleryFiles([]);
 
-  // ✅ NEW: delete an EXISTING DB image (not the local preview)
   const deleteExistingImage = async (imageId) => {
     if (!editingId || !imageId) return;
     const ok = window.confirm("Delete this photo?");
@@ -401,10 +461,8 @@ export default function AddListingPage() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error || "Failed to delete image");
 
-      // remove from modal gallery
       setEditingGalleryImages((prev) => prev.filter((x) => x.id !== imageId));
 
-      // also update the list row locally so counts stay correct
       setItems((prev) =>
         prev.map((l) => {
           if (l.id !== editingId) return l;
@@ -476,7 +534,9 @@ export default function AddListingPage() {
     if (togglingId) return;
 
     const nextHidden = !isHidden(listing);
-    const ok = window.confirm(`${nextHidden ? "Hide" : "Unhide"} "${listing.title}"?`);
+    const ok = window.confirm(
+      `${nextHidden ? "Hide" : "Unhide"} "${listing.title}"?`
+    );
     if (!ok) return;
 
     setTogglingId(listing.id);
@@ -540,7 +600,6 @@ export default function AddListingPage() {
         title: form.title,
         country: form.country,
 
-        // ✅ map fields
         latitude: toFloatOrNull(form.latitude),
         longitude: toFloatOrNull(form.longitude),
         addressText: form.addressText?.trim() ? form.addressText.trim() : null,
@@ -587,7 +646,8 @@ export default function AddListingPage() {
         });
 
         const createJson = await createRes.json().catch(() => ({}));
-        if (!createRes.ok) throw new Error(createJson?.error || "Failed to create listing");
+        if (!createRes.ok)
+          throw new Error(createJson?.error || "Failed to create listing");
 
         listingId = createJson.id;
         if (!listingId) throw new Error("Create listing response missing id");
@@ -602,7 +662,8 @@ export default function AddListingPage() {
         });
 
         const updateJson = await updateRes.json().catch(() => ({}));
-        if (!updateRes.ok) throw new Error(updateJson?.error || "Failed to update listing");
+        if (!updateRes.ok)
+          throw new Error(updateJson?.error || "Failed to update listing");
       }
 
       const hasNewMedia = !!coverFile || galleryFiles.length > 0;
@@ -638,34 +699,42 @@ export default function AddListingPage() {
           });
 
           const presignJson = await presignRes.json().catch(() => ({}));
-          if (!presignRes.ok) throw new Error(presignJson?.error || "Failed to presign uploads");
+          if (!presignRes.ok)
+            throw new Error(presignJson?.error || "Failed to presign uploads");
 
           const uploads = presignJson.uploads || [];
           if (!uploads.length) throw new Error("No uploads returned from presign");
 
-          const allFilesInOrder = [...(coverFile ? [coverFile] : []), ...galleryFiles];
+          const allFilesInOrder = [
+            ...(coverFile ? [coverFile] : []),
+            ...galleryFiles,
+          ];
 
           for (let i = 0; i < uploads.length; i++) {
             await putToSignedUrl(uploads[i].uploadUrl, allFilesInOrder[i]);
           }
 
-          const saveRes = await fetch(`${API_BASE}/uploads/listing/${listingId}/images`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({
-              images: uploads.map((u) => ({
-                key: u.key,
-                url: u.publicUrl,
-                isCover: !!u.isCover,
-              })),
-            }),
-          });
+          const saveRes = await fetch(
+            `${API_BASE}/uploads/listing/${listingId}/images`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+              },
+              body: JSON.stringify({
+                images: uploads.map((u) => ({
+                  key: u.key,
+                  url: u.publicUrl,
+                  isCover: !!u.isCover,
+                })),
+              }),
+            }
+          );
 
           const saveJson = await saveRes.json().catch(() => ({}));
-          if (!saveRes.ok) throw new Error(saveJson?.error || "Failed to save images to DB");
+          if (!saveRes.ok)
+            throw new Error(saveJson?.error || "Failed to save images to DB");
         }
       }
 
@@ -691,6 +760,21 @@ export default function AddListingPage() {
       ? { lat: Number(form.latitude), lng: Number(form.longitude) }
       : null;
 
+  // ✅ filtered items by agent before rendering list
+  const visibleItems = useMemo(() => {
+    if (agentFilterId === "ALL") return items;
+
+    return items.filter((l) => {
+      const id =
+        l?.assignedAgentId ||
+        l?.assignedAgent?.id ||
+        l?.agentId ||
+        l?.agent?.id ||
+        "";
+      return String(id) === String(agentFilterId);
+    });
+  }, [items, agentFilterId]);
+
   return (
     <div className="al">
       <div className="al-card">
@@ -701,10 +785,19 @@ export default function AddListingPage() {
           </div>
 
           <div style={{ display: "flex", gap: 10 }}>
-            <button className="al-btn al-btnGhost" type="button" onClick={loadListings} disabled={loading}>
+            <button
+              className="al-btn al-btnGhost"
+              type="button"
+              onClick={loadListings}
+              disabled={loading}
+            >
               {loading ? "Refreshing..." : "Refresh"}
             </button>
-            <button className="al-btn al-btnPrimary" type="button" onClick={openModalCreate}>
+            <button
+              className="al-btn al-btnPrimary"
+              type="button"
+              onClick={openModalCreate}
+            >
               + Add Listing
             </button>
           </div>
@@ -712,24 +805,54 @@ export default function AddListingPage() {
 
         {listError && <div className="al-alert">{listError}</div>}
 
+        {/* Agent filter bar */}
+        <div
+          style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 12 }}
+        >
+          <div style={{ fontSize: 13, opacity: 0.8, minWidth: 90 }}>
+            Filter agent:
+          </div>
+          <select
+            className="al-input"
+            value={agentFilterId}
+            onChange={(e) => setAgentFilterId(e.target.value)}
+            style={{ maxWidth: 320 }}
+            disabled={agentsLoading}
+          >
+            <option value="ALL">All agents</option>
+            {agents.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.fullName}
+              </option>
+            ))}
+          </select>
+
+          <div style={{ fontSize: 13, opacity: 0.75 }}>
+            {agentsLoading ? "Loading agents…" : `${visibleItems.length} shown`}
+          </div>
+        </div>
+
         {loading ? (
           <div className="al-muted" style={{ marginTop: 14 }}>
             Loading…
           </div>
         ) : (
           <div className="al-list">
-            {items.length === 0 ? (
+            {visibleItems.length === 0 ? (
               <div className="al-empty">No listings yet.</div>
             ) : (
-              items.map((l) => (
+              visibleItems.map((l) => (
                 <div key={l.id} className="al-row">
                   <div className="al-leftRow">
                     <img
                       className="al-thumb"
-                      src={coverUrl(l) || "https://via.placeholder.com/80x80?text=No+Img"}
+                      src={
+                        coverUrl(l) || "https://via.placeholder.com/80x80?text=No+Img"
+                      }
                       alt={l.title || "Listing"}
                       onError={(e) => {
-                        e.currentTarget.src = "https://via.placeholder.com/80x80?text=No+Img";
+                        e.currentTarget.src =
+                          "https://via.placeholder.com/80x80?text=No+Img";
                       }}
                     />
 
@@ -737,9 +860,15 @@ export default function AddListingPage() {
                       <div className="al-nameRow">
                         <div className="al-name">{l.title}</div>
                         {l.featured ? <span className="al-tag">Featured</span> : null}
-                        <span className="al-tag al-tagSoft">{badgeLabel(l.listingType)}</span>
-                        {isHidden(l) ? <span className="al-tag al-tagHidden">Hidden</span> : null}
-                        {hasLocation(l) ? <span className="al-tag al-tagSoft">Has location</span> : null}
+                        <span className="al-tag al-tagSoft">
+                          {badgeLabel(l.listingType)}
+                        </span>
+                        {isHidden(l) ? (
+                          <span className="al-tag al-tagHidden">Hidden</span>
+                        ) : null}
+                        {hasLocation(l) ? (
+                          <span className="al-tag al-tagSoft">Has location</span>
+                        ) : null}
                       </div>
 
                       <div className="al-line">
@@ -750,7 +879,9 @@ export default function AddListingPage() {
                       <div className="al-line al-lineMuted">
                         {l.developerName ? `${l.developerName} · ` : ""}
                         {l.startingPrice
-                          ? `${l.currency || "USD"} ${Number(l.startingPrice).toLocaleString()}`
+                          ? `${l.currency || "USD"} ${Number(
+                            l.startingPrice
+                          ).toLocaleString()}`
                           : "No price"}{" "}
                         · {Array.isArray(l.images) ? `${l.images.length} photos` : "0 photos"}
                       </div>
@@ -758,7 +889,12 @@ export default function AddListingPage() {
                   </div>
 
                   <div className="al-actionsRow">
-                    <button type="button" className="al-btn al-btnGhost" onClick={() => openModalEdit(l)} title="Edit listing">
+                    <button
+                      type="button"
+                      className="al-btn al-btnGhost"
+                      onClick={() => openModalEdit(l)}
+                      title="Edit listing"
+                    >
                       Edit
                     </button>
 
@@ -769,7 +905,11 @@ export default function AddListingPage() {
                       onClick={() => onToggleHidden(l)}
                       title={isHidden(l) ? "Unhide listing" : "Hide listing"}
                     >
-                      {togglingId === l.id ? "Updating…" : isHidden(l) ? "Unhide" : "Hide"}
+                      {togglingId === l.id
+                        ? "Updating…"
+                        : isHidden(l)
+                          ? "Unhide"
+                          : "Hide"}
                     </button>
 
                     <button
@@ -791,10 +931,17 @@ export default function AddListingPage() {
 
       {open && (
         <div className="al-modalOverlay" onClick={closeModal} role="presentation">
-          <div className="al-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+          <div
+            className="al-modal"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+          >
             <div className="al-modalHeader">
               <div>
-                <div className="al-modalTitle">{isEdit ? "Edit Listing" : "Add Listing"}</div>
+                <div className="al-modalTitle">
+                  {isEdit ? "Edit Listing" : "Add Listing"}
+                </div>
                 <div className="al-modalSub">
                   {isEdit
                     ? "Update fields. Media is optional unless you want to replace it."
@@ -802,7 +949,12 @@ export default function AddListingPage() {
                 </div>
               </div>
 
-              <button className="al-btn al-btnGhost" type="button" onClick={closeModal} disabled={saving}>
+              <button
+                className="al-btn al-btnGhost"
+                type="button"
+                onClick={closeModal}
+                disabled={saving}
+              >
                 Close
               </button>
             </div>
@@ -828,7 +980,9 @@ export default function AddListingPage() {
                       />
                     ) : (
                       <div className="al-dropInner">
-                        <div className="al-dropTitle">{isEdit ? "Keep current cover or pick a new one" : "Choose cover image"}</div>
+                        <div className="al-dropTitle">
+                          {isEdit ? "Keep current cover or pick a new one" : "Choose cover image"}
+                        </div>
                         <div className="al-dropHint">PNG/JPG · Max 100MB</div>
                       </div>
                     )}
@@ -845,7 +999,12 @@ export default function AddListingPage() {
                     </div>
 
                     {galleryFiles.length > 0 && (
-                      <button type="button" className="al-btn al-btnGhost" onClick={clearAllGallery} disabled={saving}>
+                      <button
+                        type="button"
+                        className="al-btn al-btnGhost"
+                        onClick={clearAllGallery}
+                        disabled={saving}
+                      >
                         Clear
                       </button>
                     )}
@@ -853,7 +1012,6 @@ export default function AddListingPage() {
 
                   <input className="al-file" type="file" accept="image/*" multiple onChange={onPickGallery} />
 
-                  {/* ✅ NEW: show either NEW picks, or EXISTING DB gallery with X delete */}
                   {galleryPreviews.length > 0 ? (
                     <div className="al-galleryGrid">
                       {galleryPreviews.map((p, idx) => (
@@ -894,9 +1052,7 @@ export default function AddListingPage() {
                     </div>
                   ) : (
                     <div className="al-emptyGallery">
-                      {isEdit
-                        ? "No gallery images for this listing yet."
-                        : "No gallery images selected."}
+                      {isEdit ? "No gallery images for this listing yet." : "No gallery images selected."}
                     </div>
                   )}
                 </div>
@@ -921,7 +1077,7 @@ export default function AddListingPage() {
                       <input className="al-input" value={form.title} onChange={set("title")} />
                     </div>
 
-                    {/* ✅ MAP */}
+                    {/* MAP */}
                     <div className="al-span2">
                       <div className="al-label">Map Location (click to drop pin)</div>
                       <LocationPicker
@@ -986,9 +1142,25 @@ export default function AddListingPage() {
                       <input className="al-input" value={form.city} onChange={set("city")} />
                     </div>
 
+                    {/* ✅ Area / Community from REAL DB (search + still can type new) */}
                     <div>
                       <div className="al-label">Area / Community *</div>
-                      <input className="al-input" value={form.area} onChange={set("area")} />
+                      <input
+                        className="al-input"
+                        value={form.area}
+                        onChange={set("area")}
+                        placeholder="Start typing…"
+                        list="al-area-datalist"
+                        autoComplete="off"
+                      />
+                      <datalist id="al-area-datalist">
+                        {areaOptions.map((a) => (
+                          <option key={a} value={a} />
+                        ))}
+                      </datalist>
+                      <div className="al-miniHint">
+                        {areasLoading ? "Searching existing areas…" : "Pick an existing area or type a new one."}
+                      </div>
                     </div>
 
                     <div>
@@ -1053,14 +1225,17 @@ export default function AddListingPage() {
                       <div className="al-label">Bedrooms</div>
                       <input className="al-input" value={form.bedrooms} onChange={set("bedrooms")} inputMode="numeric" placeholder="1" />
                     </div>
+
                     <div>
                       <div className="al-label">Bathrooms (Toilets)</div>
                       <input className="al-input" value={form.bathrooms} onChange={set("bathrooms")} inputMode="numeric" placeholder="2" />
                     </div>
+
                     <div>
                       <div className="al-label">Parking</div>
                       <input className="al-input" value={form.parking} onChange={set("parking")} inputMode="numeric" placeholder="1" />
                     </div>
+
                     <div>
                       <div className="al-label">Size (sqft)</div>
                       <input className="al-input" value={form.sizeSqft} onChange={set("sizeSqft")} inputMode="numeric" placeholder="762" />

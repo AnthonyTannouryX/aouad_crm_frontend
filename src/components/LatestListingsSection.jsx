@@ -24,12 +24,53 @@ function shuffleArray(arr) {
   return a;
 }
 
-function formatPrice(p) {
-  const cur = p.currency || "AED";
-  const n =
-    Number(p.startingPrice ?? p.price ?? p.priceFrom ?? 0) || 0;
-  if (!n) return "";
-  return `${cur} ${n.toLocaleString()}`;
+function toMoneyNumber(v) {
+  if (v == null) return null;
+  if (typeof v === "number" && Number.isFinite(v)) return v;
+
+  const s = String(v).trim();
+  if (!s) return null;
+
+  const cleaned = s.replace(/[^\d.,-]/g, "").replace(/,/g, "");
+  const n = Number(cleaned);
+  return Number.isFinite(n) ? n : null;
+}
+
+function formatInt(n) {
+  const num = Number(n);
+  if (!Number.isFinite(num)) return "-";
+  try {
+    return new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }).format(num);
+  } catch {
+    return num.toLocaleString();
+  }
+}
+
+/**
+ * ✅ Price rules for this section:
+ * - FOR_RENT => <listing currency> <amount> / month
+ * - FOR_SALE => USD <amount>   (force USD label)
+ */
+function formatCardPrice(p) {
+  const listingType = (p?.listingType || "").toUpperCase();
+
+  const amount =
+    toMoneyNumber(p?.startingPrice) ??
+    toMoneyNumber(p?.price) ??
+    toMoneyNumber(p?.priceFrom) ??
+    null;
+
+  if (!amount || amount <= 0) return "";
+
+  const num = formatInt(amount);
+
+  if (listingType === "FOR_RENT") {
+    const cur = String(p?.currency || "AED").toUpperCase();
+    return `${cur} ${num} / month`;
+  }
+
+  // FOR_SALE (and default)
+  return `USD ${num}`;
 }
 
 // mode: "all" | "rent" | "sale"
@@ -129,7 +170,9 @@ export default function LatestListingsSection({ mode = "all" }) {
 
           type: p.propertyTypeLabel || p.propertyType || "Property",
           status: p.listingType === "FOR_RENT" ? "For Rent" : "For Sale",
-          price: p.priceLabel || formatPrice(p),
+
+          // ✅ NEW: price format rules
+          price: p.priceLabel || formatCardPrice(p),
 
           location:
             p.location ||
@@ -271,7 +314,12 @@ function CardsCarousel({ items }) {
             onClick={() => window.scrollTo(0, 0)}
           >
             <div className="ll-media">
-              {x.img ? <img className="ll-img" src={x.img} alt={x.name} /> : <div className="ll-img" style={{ background: "#eee" }} />}
+              {x.img ? (
+                <img className="ll-img" src={x.img} alt={x.name} />
+              ) : (
+                <div className="ll-img" style={{ background: "#eee" }} />
+              )}
+
               <div className="ll-tags">
                 <span className="ll-tag ll-tag--black">{x.name}</span>
                 {x.developer && <span className="ll-tag ll-tag--light">{x.developer}</span>}
