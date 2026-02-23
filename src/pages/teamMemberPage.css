@@ -1,8 +1,5 @@
 /* src/pages/teamMemberPage.css */
 
-/* =========================
-   PAGE
-========================= */
 .tm {
   background: #fff;
   font-family: Montserrat, sans-serif;
@@ -128,6 +125,14 @@
   white-space: nowrap;
 }
 
+/* stop iOS blue link styling inside pills */
+.tm-emailPill,
+.tm-emailPill:visited,
+.tm-emailPill:hover,
+.tm-emailPill:active {
+  color: #374151;
+}
+
 /* BIO */
 .tm-bio {
   margin-top: 26px;
@@ -135,59 +140,6 @@
   line-height: 1.7;
   color: #4b5563;
   max-width: 1000px;
-}
-
-/* UNDER */
-.tm-under {
-  max-width: 1280px;
-  margin: -40px auto 60px;
-  padding: 0 24px;
-}
-
-.tm-bc {
-  display: flex;
-  gap: 10px;
-  font-size: 15px;
-  color: #6b7280;
-}
-
-.tm-bc .strong {
-  font-weight: 600;
-  color: #374151;
-}
-
-.tm-bc .muted {
-  color: #9ca3af;
-}
-
-/* BIOGRAPHY SECTION */
-.tm-bioSection {
-  max-width: 1280px;
-  margin: 0 auto 80px;
-  padding: 0 24px;
-}
-
-.tm-bioTitle {
-  font-family: Montserrat, sans-serif;
-  font-size: 23px;
-  font-weight: 300;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: rgb(17, 24, 39);
-  margin: 40px 0 24px;
-}
-
-.tm-bioText {
-  max-width: 1000px;
-}
-
-.tm-bioText p {
-  font-family: Montserrat, sans-serif;
-  font-size: 16px;
-  font-weight: 400;
-  line-height: 24px;
-  color: rgb(78, 85, 98);
-  margin: 0 0 22px;
 }
 
 /* PROPERTIES SECTION WRAP */
@@ -236,14 +188,12 @@
 .lop-card {
   text-decoration: none;
   color: inherit;
-
   background: #fff;
   border: 1px solid rgba(15, 23, 42, 0.12);
   border-radius: 14px;
   overflow: hidden;
   display: flex;
   flex-direction: column;
-
   transition: transform 0.18s ease, box-shadow 0.18s ease;
 }
 
@@ -291,7 +241,7 @@
 
 .lop-badge--light {
   background: rgba(255, 255, 255, 0.85);
-  color: rgb(0, 0, 0);
+  color: #000;
   border: 1px solid rgba(15, 23, 42, 0.12);
 }
 
@@ -303,12 +253,6 @@
 .lop-badge--black {
   background: #000;
   color: #fff;
-}
-
-.lop-star {
-  width: 14px;
-  height: 14px;
-  margin-left: 8px;
 }
 
 /* BODY */
@@ -325,7 +269,7 @@
   font-size: 20px;
   font-weight: 650;
   line-height: 1.25;
-  color: rgb(17, 24, 39);
+  color: #111827;
 
   display: -webkit-box;
   -webkit-box-orient: vertical;
@@ -352,6 +296,7 @@
 .lop-mini {
   width: 16px;
   height: 16px;
+  flex-shrink: 0;
   color: rgb(100, 116, 139);
 }
 
@@ -361,7 +306,7 @@
   margin: 14px 0 12px;
 }
 
-/* ✅ PRICE + ICONS: ALWAYS SAME ROW (ALL SIZES) */
+/* ✅ PRICE + ICONS: SAME ROW */
 .lop-bottom {
   display: flex;
   align-items: center;
@@ -373,48 +318,58 @@
 .lop-from {
   flex: 1 1 auto;
   min-width: 0;
-
   font-family: Montserrat, sans-serif;
   font-size: 16px;
   font-weight: 650;
-  color: rgb(17, 24, 39);
-
+  color: #111827;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-/* buttons */
+/* ACTIONS */
 .lop-actions {
   flex: 0 0 auto;
   display: flex;
   gap: 8px;
 }
 
+/* ✅ iOS FIX: stop blue icons + tap highlight */
 .lop-ico-btn {
+  -webkit-appearance: none;
+  appearance: none;
+  -webkit-tap-highlight-color: transparent;
+
   width: 38px;
   height: 38px;
   border-radius: 12px;
   border: 1px solid rgba(15, 23, 42, 0.10);
   background: rgba(15, 23, 42, 0.04);
+
   display: inline-flex;
   align-items: center;
   justify-content: center;
+
   cursor: pointer;
   transition: background 0.15s ease;
+  padding: 0;
+
+  color: #111827;
+  /* ✅ forces icon color via currentColor */
 }
 
 .lop-ico-btn:hover {
   background: rgba(15, 23, 42, 0.08);
 }
 
-.lop-action-ico {
-  width: 16px;
-  height: 16px;
-  color: #000;
+/* ✅ react-icons are svg -> force them to inherit and not become "link blue" */
+.lop-ico-btn svg,
+.lop-ico-btn svg * {
+  color: currentColor !important;
+  fill: currentColor !important;
 }
 
-/* RESPONSIVE: header card */
+/* Responsive header */
 @media (max-width: 900px) {
   .tm-topRow {
     flex-direction: column;
@@ -462,10 +417,6 @@
     margin-top: 18px;
     text-align: left;
   }
-
-  .tm-under {
-    padding: 0 16px;
-  }
 }
 
 @media (max-width: 600px) {
@@ -496,8 +447,7 @@
     font-size: 15px;
   }
 
-  .tm-props,
-  .tm-bioSection {
+  .tm-props {
     padding: 0 16px;
   }
 

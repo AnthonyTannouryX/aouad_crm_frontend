@@ -53,7 +53,7 @@ function normalizeListing(p) {
   const handover = p?.handover || p?.completionYear || null;
 
   const currency = p?.currency || "USD";
-  const type = p?.listingType || p?.type || p?.category || "";
+  const type = String(p?.listingType || p?.type || p?.category || "").toUpperCase();
 
   const toNum = (v) => {
     const n = Number(String(v ?? "").replace(/[^\d.]/g, ""));
@@ -70,7 +70,6 @@ function normalizeListing(p) {
 
   let price = "";
 
-  // ✅ If backend already provides a formatted label, prefer it
   if (p?.priceLabel && String(p.priceLabel).trim()) {
     price = String(p.priceLabel).trim();
   } else if (type === "OFF_PLAN") {
@@ -93,7 +92,6 @@ function normalizeListing(p) {
     );
     price = n ? `${currency} ${n.toLocaleString()} / month` : "Price on request";
   } else {
-    // FOR_SALE or fallback
     const n = pickFirstNum(
       p?.price,
       p?.salePrice,
@@ -131,7 +129,7 @@ export default function TeamMemberPage() {
   const memberRole = member?.title || "Property Consultant";
   const memberImg = member?.photoUrl || avatarUrl(memberName);
   const memberEmail = member?.email || "";
-  const memberPhone = member?.phone || member?.whatsapp || "";
+  const memberPhoneRaw = member?.phone || member?.whatsapp || "";
   const bioText = member?.bio?.trim() ? member.bio.trim() : "—";
 
   const languages = useMemo(() => {
@@ -139,9 +137,20 @@ export default function TeamMemberPage() {
     return arr.length ? arr : ["English"];
   }, [member?.languages]);
 
-  const whatsappLink = memberPhone
-    ? `https://wa.me/${String(memberPhone).replace(/[^\d]/g, "")}`
-    : null;
+  // ✅ whatsapp phone as digits (wa.me requires digits, no +)
+  const whatsappPhone = useMemo(() => {
+    const digits = String(memberPhoneRaw || "").replace(/[^\d]/g, "");
+    return digits || "";
+  }, [memberPhoneRaw]);
+
+  const whatsappProfileLink = whatsappPhone ? `https://wa.me/${whatsappPhone}` : "";
+
+  const openWhatsapp = (message) => {
+    if (!whatsappPhone) return;
+    const text = encodeURIComponent(message || "");
+    const url = `https://wa.me/${whatsappPhone}${text ? `?text=${text}` : ""}`;
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
 
   const agentId = member?.id || member?.agentId || member?.userId || "";
 
@@ -258,14 +267,20 @@ export default function TeamMemberPage() {
                     </a>
                   )}
 
-                  {whatsappLink && (
+                  {whatsappPhone && (
                     <a
-                      href={whatsappLink}
+                      href={whatsappProfileLink}
                       target="_blank"
                       rel="noreferrer"
                       className="tm-emailPill"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        openWhatsapp(
+                          `Hi ${memberName}, I’d like to ask about your listings.`
+                        );
+                      }}
                     >
-                      <FaWhatsapp /> WhatsApp
+                      <FaWhatsapp /> Message on WhatsApp
                     </a>
                   )}
                 </div>
@@ -295,7 +310,15 @@ export default function TeamMemberPage() {
                 onClick={() => window.scrollTo(0, 0)}
               >
                 <div className="lop-media">
-                  <img src={p.image} alt={p.title} className="lop-img" loading="lazy" />
+                  <img
+                    src={p.image}
+                    alt={p.title}
+                    className="lop-img"
+                    loading="lazy"
+                    onError={(e) => {
+                      e.currentTarget.src = "/placeholder-listing.jpg";
+                    }}
+                  />
 
                   <div className="lop-badges">
                     {p.featured && (
@@ -325,12 +348,12 @@ export default function TeamMemberPage() {
 
                   <div className="lop-meta">
                     <div className="lop-meta-row">
-                      <FaMapMarkerAlt />
+                      <FaMapMarkerAlt className="lop-mini" />
                       <span>{p.location}</span>
                     </div>
 
                     <div className="lop-meta-row">
-                      <FaRegCircle />
+                      <FaRegCircle className="lop-mini" />
                       <span>Payment Plan: {p.paymentPlan}</span>
                     </div>
                   </div>
@@ -338,12 +361,12 @@ export default function TeamMemberPage() {
                   <div className="lop-line" />
 
                   <div className="lop-bottom">
-                    {/* ✅ NEVER empty now */}
                     <span className="lop-from">{p.price || "Price on request"}</span>
 
                     <div className="lop-actions">
                       <button
                         className="lop-ico-btn"
+                        type="button"
                         onClick={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
@@ -360,30 +383,25 @@ export default function TeamMemberPage() {
                         aria-label="Schedule a call"
                         title="Schedule a call"
                       >
-                        <FaCalendarAlt />
+                        <FaCalendarAlt className="lop-action-ico" />
                       </button>
 
-                      {whatsappLink && (
+                      {whatsappPhone && (
                         <button
                           className="lop-ico-btn"
+                          type="button"
                           onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
 
-                            const msg = encodeURIComponent(
-                              `Hi, I'm interested in this property (${p.title}).`
-                            );
-
-                            window.open(
-                              `${whatsappLink}?text=${msg}`,
-                              "_blank",
-                              "noopener,noreferrer"
+                            openWhatsapp(
+                              `Hi ${memberName}, I'm interested in "${p.title}". Can you share more details and availability?`
                             );
                           }}
-                          aria-label="WhatsApp"
-                          title="WhatsApp"
+                          aria-label="Message agent on WhatsApp"
+                          title="Message on WhatsApp"
                         >
-                          <FaWhatsapp />
+                          <FaWhatsapp className="lop-action-ico" />
                         </button>
                       )}
                     </div>
