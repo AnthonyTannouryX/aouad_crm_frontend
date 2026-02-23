@@ -7,8 +7,8 @@ import {
   FaMapMarkerAlt,
   FaRegCircle,
   FaStar,
-  FaPhoneAlt,
   FaWhatsapp,
+  FaCalendarAlt,
 } from "react-icons/fa";
 
 import "./teamMemberPage.css";
@@ -32,6 +32,7 @@ async function safeJson(res) {
   }
 }
 
+/* ================= NORMALIZE LISTING ================= */
 function normalizeListing(p) {
   const cover =
     p?.mainImageUrl ||
@@ -41,16 +42,66 @@ function normalizeListing(p) {
     p?.images?.[0]?.url ||
     "/placeholder-listing.jpg";
 
-  const location = p?.locationLabel || p?.location || p?.area || p?.city || "-";
+  const location =
+    p?.locationLabel ||
+    p?.location ||
+    [p?.country, p?.city, p?.area].filter(Boolean).join(", ") ||
+    "-";
+
   const paymentPlan = p?.paymentPlan || "-";
   const developer = p?.developerName || p?.developer || p?.projectName || "";
   const handover = p?.handover || p?.completionYear || null;
 
-  const price =
-    p?.priceLabel ||
-    (p?.startingPrice && p?.currency
-      ? `From ${p.currency} ${Number(p.startingPrice).toLocaleString()}`
-      : p?.price || "-");
+  const currency = p?.currency || "USD";
+  const type = p?.listingType || p?.type || p?.category || "";
+
+  const toNum = (v) => {
+    const n = Number(String(v ?? "").replace(/[^\d.]/g, ""));
+    return Number.isFinite(n) ? n : 0;
+  };
+
+  const pickFirstNum = (...vals) => {
+    for (const v of vals) {
+      const n = toNum(v);
+      if (n > 0) return n;
+    }
+    return 0;
+  };
+
+  let price = "";
+
+  // ✅ If backend already provides a formatted label, prefer it
+  if (p?.priceLabel && String(p.priceLabel).trim()) {
+    price = String(p.priceLabel).trim();
+  } else if (type === "OFF_PLAN") {
+    const n = pickFirstNum(
+      p?.startingPrice,
+      p?.priceFrom,
+      p?.startingPriceUsd,
+      p?.price,
+      p?.price_from,
+      p?.fromPrice
+    );
+    price = n ? `From ${currency} ${n.toLocaleString()}` : "Price on request";
+  } else if (type === "FOR_RENT") {
+    const n = pickFirstNum(
+      p?.monthlyPrice,
+      p?.price,
+      p?.rent,
+      p?.rentPrice,
+      p?.monthly_rent
+    );
+    price = n ? `${currency} ${n.toLocaleString()} / month` : "Price on request";
+  } else {
+    // FOR_SALE or fallback
+    const n = pickFirstNum(
+      p?.price,
+      p?.salePrice,
+      p?.startingPrice,
+      p?.sale_price
+    );
+    price = n ? `${currency} ${n.toLocaleString()}` : "Price on request";
+  }
 
   return {
     id: p.id,
@@ -65,6 +116,7 @@ function normalizeListing(p) {
   };
 }
 
+/* ================= PAGE ================= */
 export default function TeamMemberPage() {
   const { slug } = useParams();
   const navigate = useNavigate();
@@ -79,7 +131,7 @@ export default function TeamMemberPage() {
   const memberRole = member?.title || "Property Consultant";
   const memberImg = member?.photoUrl || avatarUrl(memberName);
   const memberEmail = member?.email || "";
-  const memberPhone = member?.phone || "";
+  const memberPhone = member?.phone || member?.whatsapp || "";
   const bioText = member?.bio?.trim() ? member.bio.trim() : "—";
 
   const languages = useMemo(() => {
@@ -88,22 +140,26 @@ export default function TeamMemberPage() {
   }, [member?.languages]);
 
   const whatsappLink = memberPhone
-    ? `https://wa.me/${memberPhone.replace(/[^\d]/g, "")}`
+    ? `https://wa.me/${String(memberPhone).replace(/[^\d]/g, "")}`
     : null;
 
-  const telLink = memberPhone ? `tel:${memberPhone}` : null;
+  const agentId = member?.id || member?.agentId || member?.userId || "";
 
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [slug]);
 
-  // Fetch agent by slug
+  /* ===== FETCH MEMBER ===== */
   useEffect(() => {
     let alive = true;
+
     (async () => {
       try {
         setLoadingMember(true);
-        const res = await fetch(`${API_BASE}/public/agents/${encodeURIComponent(slug)}`);
+
+        const res = await fetch(
+          `${API_BASE}/public/agents/${encodeURIComponent(slug)}`
+        );
         const data = await safeJson(res);
 
         if (!alive) return;
@@ -126,9 +182,10 @@ export default function TeamMemberPage() {
     };
   }, [slug, navigate]);
 
-  // ✅ Fetch listings for this agent (NEW stable endpoint)
+  /* ===== FETCH LISTINGS ===== */
   useEffect(() => {
     let alive = true;
+
     (async () => {
       try {
         setLoadingListings(true);
@@ -137,6 +194,7 @@ export default function TeamMemberPage() {
           `${API_BASE}/public/agents/${encodeURIComponent(slug)}/listings?limit=50`
         );
         const data = await safeJson(res);
+
         if (!alive) return;
 
         if (!res.ok) {
@@ -158,13 +216,15 @@ export default function TeamMemberPage() {
     };
   }, [slug]);
 
-  if (loadingMember) return null;
-  if (!member) return null;
+  if (loadingMember || !member) return null;
 
   return (
     <main className="tm">
       {/* HERO */}
-      <section className="tm-hero" style={{ backgroundImage: `url(${heroImg})` }} />
+      <section
+        className="tm-hero"
+        style={{ backgroundImage: `url(${heroImg})` }}
+      />
 
       {/* CARD */}
       <section className="tm-cardWrap">
@@ -175,9 +235,7 @@ export default function TeamMemberPage() {
                 <img
                   src={memberImg}
                   alt={memberName}
-                  onError={(e) => {
-                    e.currentTarget.src = avatarUrl(memberName);
-                  }}
+                  onError={(e) => (e.currentTarget.src = avatarUrl(memberName))}
                 />
               </div>
 
@@ -185,7 +243,7 @@ export default function TeamMemberPage() {
                 <div className="tm-langRow">
                   {languages.map((lang) => (
                     <div key={lang} className="tm-lang">
-                      {lang} <FaCheck className="tm-lang-check" />
+                      {lang} <FaCheck />
                     </div>
                   ))}
                 </div>
@@ -194,31 +252,22 @@ export default function TeamMemberPage() {
                 <div className="tm-role">{memberRole}</div>
 
                 <div className="tm-contactRow">
-                  {memberEmail ? (
+                  {memberEmail && (
                     <a href={`mailto:${memberEmail}`} className="tm-emailPill">
-                      <FaEnvelope />
-                      {memberEmail}
+                      <FaEnvelope /> {memberEmail}
                     </a>
-                  ) : null}
+                  )}
 
-                  {telLink ? (
-                    <a href={telLink} className="tm-emailPill">
-                      <FaPhoneAlt />
-                      {memberPhone}
-                    </a>
-                  ) : null}
-
-                  {whatsappLink ? (
+                  {whatsappLink && (
                     <a
                       href={whatsappLink}
                       target="_blank"
                       rel="noreferrer"
                       className="tm-emailPill"
                     >
-                      <FaWhatsapp />
-                      WhatsApp
+                      <FaWhatsapp /> WhatsApp
                     </a>
-                  ) : null}
+                  )}
                 </div>
               </div>
             </div>
@@ -227,19 +276,6 @@ export default function TeamMemberPage() {
           <p className="tm-bio">{bioText}</p>
         </div>
       </section>
-
-      {/* BREADCRUMB */}
-      <div className="tm-under">
-        <div className="tm-bc">
-          <span className="strong">Aouad</span>
-          <span>›</span>
-          <Link className="strong" to="/our-team" style={{ textDecoration: "none" }}>
-            Team
-          </Link>
-          <span>›</span>
-          <span className="muted">{memberName}</span>
-        </div>
-      </div>
 
       {/* PROPERTIES */}
       <section className="tm-props">
@@ -255,74 +291,101 @@ export default function TeamMemberPage() {
               <Link
                 key={p.id}
                 to={`/listing/${p.id}`}
-                className="tm-propCard"
-                style={{ textDecoration: "none", color: "inherit" }}
+                className="lop-card"
                 onClick={() => window.scrollTo(0, 0)}
               >
-                <div className="tm-propMedia">
-                  <img
-                    src={p.image}
-                    alt={p.title}
-                    onError={(e) => {
-                      e.currentTarget.src = "/placeholder-listing.jpg";
-                    }}
-                  />
+                <div className="lop-media">
+                  <img src={p.image} alt={p.title} className="lop-img" loading="lazy" />
 
-                  <div className="tm-propBadges">
+                  <div className="lop-badges">
                     {p.featured && (
-                      <span className="tm-badge light">
+                      <div className="lop-badge lop-badge--light">
                         Featured <FaStar />
-                      </span>
+                      </div>
                     )}
+
                     {p.handover && (
-                      <span className="tm-badge dark">{p.handover}</span>
+                      <div className="lop-badge lop-badge--dark">
+                        {String(p.handover).startsWith("Handover")
+                          ? String(p.handover)
+                          : `Handover by ${p.handover}`}
+                      </div>
                     )}
-                    {p.developer && <span className="tm-badge black">{p.developer}</span>}
+
+                    {p.developer && (
+                      <div className="lop-badge lop-badge--black">
+                        {p.developer}
+                      </div>
+                    )}
                   </div>
                 </div>
 
-                <div className="tm-propBody">
-                  <h3>{p.title}</h3>
+                <div className="lop-body">
+                  <h3 className="lop-card-title">{p.title}</h3>
 
-                  <div className="tm-propRow">
-                    <FaMapMarkerAlt />
-                    {p.location}
+                  <div className="lop-meta">
+                    <div className="lop-meta-row">
+                      <FaMapMarkerAlt />
+                      <span>{p.location}</span>
+                    </div>
+
+                    <div className="lop-meta-row">
+                      <FaRegCircle />
+                      <span>Payment Plan: {p.paymentPlan}</span>
+                    </div>
                   </div>
 
-                  <div className="tm-propRow">
-                    <FaRegCircle />
-                    Payment Plan: {p.paymentPlan}
-                  </div>
+                  <div className="lop-line" />
 
-                  <div className="tm-propDivider" />
+                  <div className="lop-bottom">
+                    {/* ✅ NEVER empty now */}
+                    <span className="lop-from">{p.price || "Price on request"}</span>
 
-                  <div className="tm-propBottom">
-                    <strong>{p.price}</strong>
-
-                    <div className="tm-propActions">
+                    <div className="lop-actions">
                       <button
-                        type="button"
+                        className="lop-ico-btn"
                         onClick={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
-                          telLink && (window.location.href = telLink);
+
+                          if (!agentId) {
+                            window.location.href = "/schedule-call";
+                            return;
+                          }
+
+                          window.location.href = `/schedule-call?agentId=${encodeURIComponent(
+                            agentId
+                          )}&listingId=${encodeURIComponent(p.id)}`;
                         }}
-                        title="Call"
+                        aria-label="Schedule a call"
+                        title="Schedule a call"
                       >
-                        <FaPhoneAlt />
+                        <FaCalendarAlt />
                       </button>
 
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          whatsappLink && window.open(whatsappLink, "_blank");
-                        }}
-                        title="WhatsApp"
-                      >
-                        <FaWhatsapp />
-                      </button>
+                      {whatsappLink && (
+                        <button
+                          className="lop-ico-btn"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+
+                            const msg = encodeURIComponent(
+                              `Hi, I'm interested in this property (${p.title}).`
+                            );
+
+                            window.open(
+                              `${whatsappLink}?text=${msg}`,
+                              "_blank",
+                              "noopener,noreferrer"
+                            );
+                          }}
+                          aria-label="WhatsApp"
+                          title="WhatsApp"
+                        >
+                          <FaWhatsapp />
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>

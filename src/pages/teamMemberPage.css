@@ -1,3 +1,8 @@
+/* src/pages/teamMemberPage.css */
+
+/* =========================
+   PAGE
+========================= */
 .tm {
   background: #fff;
   font-family: Montserrat, sans-serif;
@@ -47,8 +52,11 @@
   width: 140px;
   height: 140px;
   border-radius: 50%;
-  padding: 10px;
-  background: #f1f1f1;
+  padding: 0;
+  background: none;
+  box-shadow: none;
+  border: none;
+  overflow: hidden;
 }
 
 .tm-avatar img {
@@ -56,6 +64,8 @@
   height: 100%;
   border-radius: 50%;
   object-fit: cover;
+  box-shadow: none;
+  filter: none;
 }
 
 /* NAME BLOCK */
@@ -65,14 +75,13 @@
   gap: 6px;
 }
 
-/* ✅ LANGUAGE ROW (multiple pills) */
+/* LANGUAGE ROW */
 .tm-langRow {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
 }
 
-/* LANGUAGE PILL */
 .tm-lang {
   background: #6b6b6b;
   color: #fff;
@@ -83,11 +92,6 @@
   align-items: center;
   gap: 8px;
   width: fit-content;
-}
-
-.tm-lang-check {
-  font-size: 12px;
-  opacity: 0.95;
 }
 
 /* NAME */
@@ -111,7 +115,6 @@
   flex-wrap: wrap;
 }
 
-/* EMAIL PILL */
 .tm-emailPill {
   display: inline-flex;
   align-items: center;
@@ -157,17 +160,6 @@
   color: #9ca3af;
 }
 
-/* RESPONSIVE */
-@media (max-width: 900px) {
-  .tm-topRow {
-    flex-direction: column;
-  }
-
-  .tm-emailPill {
-    margin-top: 12px;
-  }
-}
-
 /* BIOGRAPHY SECTION */
 .tm-bioSection {
   max-width: 1280px;
@@ -198,7 +190,7 @@
   margin: 0 0 22px;
 }
 
-/* PROPERTIES */
+/* PROPERTIES SECTION WRAP */
 .tm-props {
   max-width: 1280px;
   margin: 0 auto 100px;
@@ -213,122 +205,307 @@
   margin-bottom: 32px;
 }
 
+.tm-propsEmpty {
+  color: #6b7280;
+  font-size: 15px;
+}
+
+/* GRID */
 .tm-propsGrid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 28px;
 }
 
-.tm-propCard {
-  border: 1px solid rgba(15, 23, 42, 0.12);
-  border-radius: 12px;
-  overflow: hidden;
-  background: #fff;
+@media (max-width: 1000px) and (min-width: 601px) {
+  .tm-propsGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
-.tm-propMedia {
-  position: relative;
-  height: 240px;
-}
-
-.tm-propMedia img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.tm-propBadges {
-  position: absolute;
-  top: 14px;
-  left: 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.tm-badge {
-  padding: 6px 10px;
-  border-radius: 6px;
-  font-size: 13px;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.tm-badge.light {
-  background: #f3f4f6;
-}
-
-.tm-badge.dark {
-  background: #6b7280;
-  color: #fff;
-}
-
-.tm-badge.black {
-  background: #000;
-  color: #fff;
-}
-
-.tm-propBody {
-  padding: 20px;
-}
-
-.tm-propBody h3 {
-  margin: 0 0 10px;
-}
-
-.tm-propRow {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  color: #6b7280;
-  font-size: 14px;
-  margin-bottom: 6px;
-}
-
-.tm-propDivider {
-  height: 1px;
-  background: rgba(0, 0, 0, 0.08);
-  margin: 14px 0;
-}
-
-.tm-propBottom {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.tm-propActions button {
-  background: #f3f4f6;
-  border: none;
-  padding: 8px;
-  border-radius: 8px;
-  margin-left: 6px;
-  cursor: pointer;
-}
-
-@media (max-width: 1000px) {
+@media (max-width: 600px) {
   .tm-propsGrid {
     grid-template-columns: 1fr;
   }
 }
-/* AVATAR — ONLY THE PHOTO, no ring, no shadow */
-.tm-avatar {
-  width: 140px;
-  height: 140px;
-  border-radius: 50%;
-  padding: 0;        /* ✅ remove ring */
-  background: none;  /* ✅ remove ring */
-  box-shadow: none;  /* ✅ no shadow */
-  border: none;      /* optional */
-  overflow: hidden;  /* ✅ clip image perfectly */
+
+/* =========================
+   PROPERTY CARD (lop-card)
+========================= */
+
+.lop-card {
+  text-decoration: none;
+  color: inherit;
+
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 14px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
 }
 
-.tm-avatar img {
+.lop-card:hover {
+  transform: translateY(-2px);
+  box-shadow: rgba(15, 23, 42, 0.10) 0px 18px 45px -20px;
+}
+
+/* MEDIA */
+.lop-media {
+  position: relative;
+  height: 310px;
+  background: #f3f4f6;
+}
+
+.lop-img {
   width: 100%;
   height: 100%;
-  border-radius: 50%;
   object-fit: cover;
-  box-shadow: none;  /* ✅ no shadow */
-  filter: none;      /* ✅ if you had grayscale before */
+  display: block;
+}
+
+/* BADGES */
+.lop-badges {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  z-index: 2;
+}
+
+.lop-badge {
+  display: inline-flex;
+  align-items: center;
+  font-family: Montserrat, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.lop-badge--light {
+  background: rgba(255, 255, 255, 0.85);
+  color: rgb(0, 0, 0);
+  border: 1px solid rgba(15, 23, 42, 0.12);
+}
+
+.lop-badge--dark {
+  background: rgba(15, 23, 42, 0.75);
+  color: #fff;
+}
+
+.lop-badge--black {
+  background: #000;
+  color: #fff;
+}
+
+.lop-star {
+  width: 14px;
+  height: 14px;
+  margin-left: 8px;
+}
+
+/* BODY */
+.lop-body {
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.lop-card-title {
+  margin: 0 0 6px;
+  font-family: Montserrat, sans-serif;
+  font-size: 20px;
+  font-weight: 650;
+  line-height: 1.25;
+  color: rgb(17, 24, 39);
+
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  min-height: 50px;
+}
+
+.lop-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 14px;
+  color: rgb(100, 116, 139);
+  flex-grow: 1;
+}
+
+.lop-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.lop-mini {
+  width: 16px;
+  height: 16px;
+  color: rgb(100, 116, 139);
+}
+
+.lop-line {
+  height: 1px;
+  background: rgba(15, 23, 42, 0.10);
+  margin: 14px 0 12px;
+}
+
+/* ✅ PRICE + ICONS: ALWAYS SAME ROW (ALL SIZES) */
+.lop-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+
+.lop-from {
+  flex: 1 1 auto;
+  min-width: 0;
+
+  font-family: Montserrat, sans-serif;
+  font-size: 16px;
+  font-weight: 650;
+  color: rgb(17, 24, 39);
+
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* buttons */
+.lop-actions {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 8px;
+}
+
+.lop-ico-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  border: 1px solid rgba(15, 23, 42, 0.10);
+  background: rgba(15, 23, 42, 0.04);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.lop-ico-btn:hover {
+  background: rgba(15, 23, 42, 0.08);
+}
+
+.lop-action-ico {
+  width: 16px;
+  height: 16px;
+  color: #000;
+}
+
+/* RESPONSIVE: header card */
+@media (max-width: 900px) {
+  .tm-topRow {
+    flex-direction: column;
+  }
+
+  .tm-cardWrap {
+    transform: translateY(-56px);
+    padding: 0 16px;
+  }
+
+  .tm-card {
+    padding: 22px;
+  }
+
+  .tm-leftBlock {
+    width: 100%;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 14px;
+  }
+
+  .tm-nameBlock {
+    align-items: center;
+  }
+
+  .tm-langRow {
+    justify-content: center;
+  }
+
+  .tm-contactRow {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .tm-emailPill {
+    width: 100%;
+    justify-content: center;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  .tm-bio {
+    margin-top: 18px;
+    text-align: left;
+  }
+
+  .tm-under {
+    padding: 0 16px;
+  }
+}
+
+@media (max-width: 600px) {
+  .tm-hero {
+    height: 220px;
+  }
+
+  .tm-cardWrap {
+    transform: translateY(-44px);
+  }
+
+  .tm-card {
+    padding: 18px;
+    border-radius: 14px;
+  }
+
+  .tm-avatar {
+    width: 112px;
+    height: 112px;
+  }
+
+  .tm-name {
+    font-size: 30px;
+    line-height: 1.15;
+  }
+
+  .tm-role {
+    font-size: 15px;
+  }
+
+  .tm-props,
+  .tm-bioSection {
+    padding: 0 16px;
+  }
+
+  .tm-propsTitle {
+    font-size: 22px;
+  }
+
+  .lop-media {
+    height: 280px;
+  }
 }
