@@ -352,3 +352,46 @@
 .hero-btn {
     touch-action: manipulation;
 }
+
+/* force dropdown option text color on iOS */
+.hero-menu,
+.hero-menu * {
+    -webkit-text-fill-color: rgb(15, 23, 42);
+}
+
+.hero-opt {
+    color: rgb(15, 23, 42) !important;
+    text-decoration: none !important;
+}
+
+/* if options are <a> */
+.hero-opt:link,
+.hero-opt:visited,
+.hero-opt:hover,
+.hero-opt:active {
+    color: rgb(15, 23, 42) !important;
+    text-decoration: none !important;
+}
+
+/* iOS Safari: prevent blue tap/selection + ensure option text is dark */
+.hero-menu button,
+.hero-field,
+.hero-opt,
+.hero-btn {
+    -webkit-appearance: none;
+    appearance: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.hero-opt {
+    color: rgb(15, 23, 42) !important;
+    -webkit-text-fill-color: rgb(15, 23, 42) !important;
+}
+
+.hero-opt:focus,
+.hero-opt:active,
+.hero-field:focus,
+.hero-field:active {
+    outline: none !important;
+    box-shadow: none !important;
+}

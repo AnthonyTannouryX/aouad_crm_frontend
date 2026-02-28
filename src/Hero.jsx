@@ -1,19 +1,17 @@
+// src/components/Hero.jsx
 import { useMemo, useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaChevronDown, FaSearch } from "react-icons/fa";
 import "./hero.css";
 
+/* ✅ ONLY ONE IMAGE */
 import img1 from "./assets/carousel2.jpg";
-import img2 from "./assets/carousel2.jpg";
-import img3 from "./assets/carousel3.jpg";
-import img4 from "./assets/carousel3.jpg";
 
-const IMAGES = [img1, img2, img3, img4];
+const IMAGES = [img1];
 
 const LISTING_TYPES = ["Off plan", "For sale", "For rent"];
 const PROPERTY_TYPES = ["Any type", "Apartment", "Villa", "Townhouse", "Penthouse"];
 
-/* ✅ FLAT COUNTRIES (same as cards) */
 const COUNTRIES = [
     { label: "Dubai", value: "dubai" },
     { label: "Lebanon", value: "lebanon" },
@@ -43,6 +41,7 @@ export default function Hero() {
     const navigate = useNavigate();
     const rootRef = useRef(null);
 
+    /* still works, but always returns carousel2 */
     const bgImage = useMemo(
         () => IMAGES[Math.floor(Math.random() * IMAGES.length)],
         []
@@ -56,18 +55,18 @@ export default function Hero() {
 
     const [open, setOpen] = useState(null);
 
-    /* close dropdowns */
+    /* close dropdowns (iOS-safe) */
     useEffect(() => {
         const close = (e) => {
             if (!rootRef.current?.contains(e.target)) setOpen(null);
         };
         const esc = (e) => e.key === "Escape" && setOpen(null);
 
-        document.addEventListener("mousedown", close);
+        document.addEventListener("click", close, { capture: true });
         document.addEventListener("keydown", esc);
 
         return () => {
-            document.removeEventListener("mousedown", close);
+            document.removeEventListener("click", close, { capture: true });
             document.removeEventListener("keydown", esc);
         };
     }, []);
@@ -98,14 +97,16 @@ export default function Hero() {
 
             <div className="hero-inner">
                 <div className="hero-eyebrow">
-                    Strategic Real Estate Guidance for Lasting Wealth                </div>
+                    Strategic Real Estate Guidance for Lasting Wealth
+                </div>
 
                 <h1 className="hero-title">
                     <span>Discover Exceptional Properties Across Global Markets</span>
                 </h1>
 
                 <p className="hero-subtitle">
-                    Secure your next property with a trusted real estate partner.          </p>
+                    Secure your next property with a trusted real estate partner.
+                </p>
 
                 <div className="hero-search" ref={rootRef}>
                     {/* Listing Type */}
@@ -122,7 +123,7 @@ export default function Hero() {
 
                     <div className="hero-divider" />
 
-                    {/* ✅ COUNTRIES (replaces community) */}
+                    {/* Country */}
                     <div className={`hero-dd hero-dd--grow ${open === "country" ? "is-open" : ""}`}>
                         <button
                             className="hero-field"
@@ -137,6 +138,7 @@ export default function Hero() {
                             {COUNTRIES.map((c) => (
                                 <button
                                     key={c.value}
+                                    type="button"
                                     className={`hero-opt ${country === c.value ? "is-active" : ""}`}
                                     onClick={() => {
                                         setCountry(c.value);
@@ -165,7 +167,7 @@ export default function Hero() {
                         }}
                     />
 
-                    <button className="hero-btn" onClick={onSearch}>
+                    <button className="hero-btn" type="button" onClick={onSearch}>
                         Search <FaSearch />
                     </button>
                 </div>
@@ -187,6 +189,7 @@ function Dropdown({ value, options, open, onToggle, onSelect, grow }) {
                 {options.map((opt) => (
                     <button
                         key={opt}
+                        type="button"
                         className={`hero-opt ${opt === value ? "is-active" : ""}`}
                         onClick={() => onSelect(opt)}
                     >
