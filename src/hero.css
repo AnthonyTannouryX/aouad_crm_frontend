@@ -308,3 +308,48 @@
         padding-top: 86px;
     }
 }
+
+/* iOS Safari: remove blue tap highlight + native button styling */
+.hero,
+.hero * {
+    -webkit-tap-highlight-color: transparent;
+}
+
+.hero-field,
+.hero-opt,
+.hero-btn {
+    -webkit-appearance: none;
+    appearance: none;
+    background-clip: padding-box;
+}
+
+/* If you see a blue flash/selection on tap */
+.hero-field:focus,
+.hero-opt:focus,
+.hero-btn:focus {
+    outline: none;
+}
+
+/* Better: keep accessibility with focus-visible (keyboard only) */
+.hero-field:focus-visible,
+.hero-opt:focus-visible,
+.hero-btn:focus-visible {
+    outline: 2px solid rgba(255, 255, 255, 0.75);
+    /* or brand color */
+    outline-offset: 2px;
+}
+
+/* Prevent iOS from doing weird text selection/long-press highlight in menus */
+.hero-menu,
+.hero-field,
+.hero-opt {
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+/* Optional: remove iOS callout menu on long press */
+.hero-menu,
+.hero-field,
+.hero-opt {
+    -webkit-touch-callout: none;
+}

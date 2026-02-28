@@ -5,18 +5,31 @@ import { api } from "../../lib/api";
 export default function AgentSettingsPage() {
     const [me, setMe] = useState(null);
     const [saving, setSaving] = useState(false);
+    const [pwdSaving, setPwdSaving] = useState(false);
 
-    const [pwd, setPwd] = useState({ current: "", next: "", confirm: "" });
+    const [pwd, setPwd] = useState({
+        current: "",
+        next: "",
+        confirm: "",
+    });
 
     async function load() {
-        const res = await api.get("/agent/me");
-        setMe(res.data);
+        try {
+            const res = await api.get("/agent/me");
+            setMe(res.data);
+        } catch (e) {
+            alert("Failed to load profile");
+        }
     }
 
-    useEffect(() => { load(); }, []);
+    useEffect(() => {
+        load();
+    }, []);
 
     async function saveProfile(e) {
         e.preventDefault();
+        if (saving) return;
+
         setSaving(true);
         try {
             await api.patch("/agent/me", {
@@ -36,18 +49,31 @@ export default function AgentSettingsPage() {
 
     async function changePassword(e) {
         e.preventDefault();
-        if (!pwd.current || pwd.next.length < 6) return alert("Password must be 6+ chars");
-        if (pwd.next !== pwd.confirm) return alert("Passwords do not match");
+        if (pwdSaving) return;
+
+        if (!pwd.current || pwd.next.length < 6) {
+            return alert("Password must be at least 6 characters");
+        }
+        if (pwd.next !== pwd.confirm) {
+            return alert("Passwords do not match");
+        }
+        if (pwd.current === pwd.next) {
+            return alert("New password must be different");
+        }
 
         try {
+            setPwdSaving(true);
             await api.post("/agent/change-password", {
                 currentPassword: pwd.current,
                 newPassword: pwd.next,
             });
+
             setPwd({ current: "", next: "", confirm: "" });
             alert("Password updated!");
         } catch (e2) {
             alert(e2?.response?.data?.error || e2.message || "Failed");
+        } finally {
+            setPwdSaving(false);
         }
     }
 
@@ -55,6 +81,7 @@ export default function AgentSettingsPage() {
 
     return (
         <div className="agt-grid">
+            {/* PROFILE */}
             <div className="agt-span6">
                 <div className="agt-card">
                     <div style={{ fontWeight: 800, marginBottom: 10 }}>Profile</div>
@@ -64,7 +91,9 @@ export default function AgentSettingsPage() {
                         <input
                             className="agt-input"
                             value={me.fullName || ""}
-                            onChange={(e) => setMe((x) => ({ ...x, fullName: e.target.value }))}
+                            onChange={(e) =>
+                                setMe((x) => ({ ...x, fullName: e.target.value }))
+                            }
                             required
                         />
 
@@ -72,7 +101,9 @@ export default function AgentSettingsPage() {
                         <input
                             className="agt-input"
                             value={me.phone || ""}
-                            onChange={(e) => setMe((x) => ({ ...x, phone: e.target.value }))}
+                            onChange={(e) =>
+                                setMe((x) => ({ ...x, phone: e.target.value }))
+                            }
                             placeholder="+961..."
                         />
 
@@ -80,7 +111,9 @@ export default function AgentSettingsPage() {
                         <input
                             className="agt-input"
                             value={me.bio || ""}
-                            onChange={(e) => setMe((x) => ({ ...x, bio: e.target.value }))}
+                            onChange={(e) =>
+                                setMe((x) => ({ ...x, bio: e.target.value }))
+                            }
                             placeholder="Short intro..."
                         />
 
@@ -93,6 +126,7 @@ export default function AgentSettingsPage() {
                 </div>
             </div>
 
+            {/* CHANGE PASSWORD */}
             <div className="agt-span6">
                 <div className="agt-card">
                     <div style={{ fontWeight: 800, marginBottom: 10 }}>Change Password</div>
@@ -103,28 +137,38 @@ export default function AgentSettingsPage() {
                             type="password"
                             placeholder="Current password"
                             value={pwd.current}
-                            onChange={(e) => setPwd((x) => ({ ...x, current: e.target.value }))}
+                            onChange={(e) =>
+                                setPwd((x) => ({ ...x, current: e.target.value }))
+                            }
                             required
                         />
+
                         <input
                             className="agt-input"
                             type="password"
                             placeholder="New password (min 6 chars)"
                             value={pwd.next}
-                            onChange={(e) => setPwd((x) => ({ ...x, next: e.target.value }))}
+                            onChange={(e) =>
+                                setPwd((x) => ({ ...x, next: e.target.value }))
+                            }
                             required
                         />
+
                         <input
                             className="agt-input"
                             type="password"
                             placeholder="Confirm new password"
                             value={pwd.confirm}
-                            onChange={(e) => setPwd((x) => ({ ...x, confirm: e.target.value }))}
+                            onChange={(e) =>
+                                setPwd((x) => ({ ...x, confirm: e.target.value }))
+                            }
                             required
                         />
 
                         <div style={{ display: "flex", justifyContent: "flex-end" }}>
-                            <button className="agt-btn" type="submit">Update</button>
+                            <button className="agt-btn" type="submit" disabled={pwdSaving}>
+                                {pwdSaving ? "Updating…" : "Update"}
+                            </button>
                         </div>
                     </form>
                 </div>

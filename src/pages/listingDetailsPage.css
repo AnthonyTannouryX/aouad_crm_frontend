@@ -766,3 +766,37 @@
         justify-content: space-between;
     }
 }
+
+/* ===== FACTS (4 per row everywhere) ===== */
+.ld-facts {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+    margin: 14px 0 6px;
+}
+
+.ld-fact {
+    width: auto;
+    /* important (override old mobile rule) */
+    justify-content: flex-start;
+    min-height: 48px;
+}
+
+/* tiny phones: still 4, but tighten spacing a bit */
+@media (max-width: 420px) {
+    .ld-facts {
+        gap: 8px;
+    }
+
+    .ld-fact {
+        padding: 8px 10px;
+    }
+
+    .ld-factVal {
+        font-size: 13px;
+    }
+
+    .ld-factIcon {
+        font-size: 15px;
+    }
+}
