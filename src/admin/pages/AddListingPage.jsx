@@ -4,7 +4,9 @@ import "./AddListingPage.css";
 import LocationPicker from "../components/LocationPicker.jsx";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:4000/api";
-const MAX_BYTES = 100 * 1024 * 1024; // 100MB
+
+const MAX_BYTES = 100 * 1024 * 1024; // 100MB images
+const MAX_PDF_BYTES = 50 * 1024 * 1024; // brochures: 50MB (change if you want)
 
 const LISTING_TYPES = [
   { value: "OFF_PLAN", label: "Off-Plan" },
@@ -43,7 +45,7 @@ const COUNTRIES = [
 function fileExt(file) {
   const name = file?.name || "";
   const dot = name.lastIndexOf(".");
-  if (dot === -1) return "jpg";
+  if (dot === -1) return "bin";
   return name.slice(dot + 1).toLowerCase();
 }
 
@@ -79,6 +81,25 @@ function hasLocation(listing) {
   );
 }
 
+function pickBrochureUrl(listing) {
+  return (
+    listing?.brochureUrl ||
+    listing?.brochurePDF ||
+    listing?.brochurePdfUrl ||
+    listing?.brochure ||
+    ""
+  );
+}
+
+function fmtBytes(n) {
+  const v = Number(n || 0);
+  if (!Number.isFinite(v) || v <= 0) return "";
+  const mb = v / (1024 * 1024);
+  if (mb >= 1) return `${mb.toFixed(mb >= 10 ? 0 : 1)} MB`;
+  const kb = v / 1024;
+  return `${kb.toFixed(kb >= 10 ? 0 : 1)} KB`;
+}
+
 export default function AddListingPage() {
   // list
   const [items, setItems] = useState([]);
@@ -91,10 +112,10 @@ export default function AddListingPage() {
   const [agents, setAgents] = useState([]);
   const [agentsLoading, setAgentsLoading] = useState(false);
 
-  // ✅ agent filter state (before listings)
+  // agent filter
   const [agentFilterId, setAgentFilterId] = useState("ALL");
 
-  // modal
+  // listing modal
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -104,7 +125,14 @@ export default function AddListingPage() {
   const [editingCoverUrl, setEditingCoverUrl] = useState("");
   const [editingGalleryImages, setEditingGalleryImages] = useState([]); // [{id,url}...]
 
-  // ✅ Area suggestions (REAL DB)
+  // ✅ Brochure popup state
+  const [broOpen, setBroOpen] = useState(false);
+  const [broListing, setBroListing] = useState(null);
+  const [broFile, setBroFile] = useState(null);
+  const [broUploading, setBroUploading] = useState(false);
+  const [broErr, setBroErr] = useState("");
+
+  // area suggestions
   const [areaOptions, setAreaOptions] = useState([]);
   const [areasLoading, setAreasLoading] = useState(false);
   const areasReqSeq = useRef(0);
@@ -112,7 +140,6 @@ export default function AddListingPage() {
   const [form, setForm] = useState({
     country: "dubai",
 
-    // map fields
     latitude: "",
     longitude: "",
     addressText: "",
@@ -157,9 +184,7 @@ export default function AddListingPage() {
       form.area.trim().length >= 2 &&
       form.city.trim().length >= 2;
 
-    const hasCover =
-      !!coverFile || (isEdit && (editingCoverUrl || "").trim().length > 0);
-
+    const hasCover = !!coverFile || (isEdit && (editingCoverUrl || "").trim().length > 0);
     return baseOk && hasCover;
   }, [form.title, form.area, form.city, coverFile, isEdit, editingCoverUrl]);
 
@@ -195,10 +220,9 @@ export default function AddListingPage() {
     try {
       const token = tokenOrThrow();
 
-      const res = await fetch(
-        `${API_BASE}/listings?includeHidden=true&limit=50`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const res = await fetch(`${API_BASE}/listings?includeHidden=true&limit=50`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error || "Failed to load listings");
@@ -212,7 +236,7 @@ export default function AddListingPage() {
     }
   }
 
-  // ✅ REAL DB fetch for areas (distinct Listing.area)
+  // area suggestions from DB
   async function loadAreasFromDb({ country, city, q }) {
     const seq = ++areasReqSeq.current;
     setAreasLoading(true);
@@ -233,13 +257,12 @@ export default function AddListingPage() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error || "Failed to load areas");
 
-      if (seq !== areasReqSeq.current) return; // ignore stale response
+      if (seq !== areasReqSeq.current) return;
       setAreaOptions(Array.isArray(data?.items) ? data.items : []);
     } catch (e) {
       console.error(e);
       if (seq !== areasReqSeq.current) return;
       setAreaOptions([]);
-      // don't block the form; just show none
     } finally {
       if (seq === areasReqSeq.current) setAreasLoading(false);
     }
@@ -251,7 +274,6 @@ export default function AddListingPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ✅ debounce area suggestions whenever modal open + country/city/area changes
   useEffect(() => {
     if (!open) return;
 
@@ -259,7 +281,7 @@ export default function AddListingPage() {
       loadAreasFromDb({
         country: form.country,
         city: form.city,
-        q: form.area, // search as user types
+        q: form.area,
       });
     }, 220);
 
@@ -381,6 +403,147 @@ export default function AddListingPage() {
     setOpen(false);
   };
 
+  // ✅ brochure popup controls
+  const openBrochurePopup = (listing) => {
+    setBroErr("");
+    setBroFile(null);
+    setBroListing(listing);
+    setBroOpen(true);
+  };
+
+  const closeBrochurePopup = () => {
+    if (broUploading) return;
+    setBroOpen(false);
+    setBroListing(null);
+    setBroFile(null);
+    setBroErr("");
+  };
+
+  const onPickBrochure = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.type !== "application/pdf") {
+      setBroErr("Please select a PDF file.");
+      e.target.value = "";
+      return;
+    }
+    if (file.size > MAX_PDF_BYTES) {
+      setBroErr(`PDF is too large. Max ${Math.round(MAX_PDF_BYTES / (1024 * 1024))}MB.`);
+      e.target.value = "";
+      return;
+    }
+
+    setBroErr("");
+    setBroFile(file);
+    e.target.value = "";
+  };
+
+  // ✅ FIXED: Upload brochure using your backend routes:
+  // 1) POST /uploads/presign (type listing-brochure)
+  // 2) PUT file to signed URL
+  // 3) POST /uploads/listing/:id/brochure  (save brochureUrl+key to DB)
+  const uploadBrochure = async () => {
+    if (!broListing?.id) return;
+    if (!broFile) {
+      setBroErr("Pick a PDF first.");
+      return;
+    }
+
+    setBroUploading(true);
+    setBroErr("");
+
+    try {
+      const token = tokenOrThrow();
+
+      const presignRes = await fetch(`${API_BASE}/uploads/presign`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          type: "listing-brochure",
+          listingId: broListing.id,
+          contentType: "application/pdf",
+          ext: "pdf",
+          sizeBytes: broFile.size,
+        }),
+      });
+
+      const presignJson = await presignRes.json().catch(() => ({}));
+      if (!presignRes.ok) throw new Error(presignJson?.error || "Failed to presign brochure upload");
+
+      const u = presignJson?.uploads?.[0];
+      if (!u?.uploadUrl || !u?.publicUrl || !u?.key) {
+        throw new Error("Presign response missing uploadUrl/publicUrl/key");
+      }
+
+      await putToSignedUrl(u.uploadUrl, broFile);
+
+      // ✅ IMPORTANT: save metadata to DB using the route you implemented
+      const saveRes = await fetch(`${API_BASE}/uploads/listing/${broListing.id}/brochure`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ key: u.key, url: u.publicUrl }),
+      });
+
+      const saveJson = await saveRes.json().catch(() => ({}));
+      if (!saveRes.ok) throw new Error(saveJson?.error || "Failed to save brochure to DB");
+
+      // update local list
+      setItems((prev) =>
+        prev.map((x) => (x.id === broListing.id ? { ...x, brochureUrl: u.publicUrl, brochureKey: u.key } : x))
+      );
+
+      setBroFile(null);
+      alert("✅ Brochure uploaded");
+      closeBrochurePopup();
+    } catch (e) {
+      console.error(e);
+      setBroErr(e?.message || "Failed to upload brochure");
+    } finally {
+      setBroUploading(false);
+    }
+  };
+
+  // ✅ FIXED: remove brochure using your backend delete route
+  const removeBrochure = async () => {
+    if (!broListing?.id) return;
+    const ok = window.confirm("Remove brochure from this listing?");
+    if (!ok) return;
+
+    setBroUploading(true);
+    setBroErr("");
+
+    try {
+      const token = tokenOrThrow();
+
+      const res = await fetch(`${API_BASE}/uploads/listing/${broListing.id}/brochure`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.error || "Failed to remove brochure");
+
+      setItems((prev) =>
+        prev.map((x) => (x.id === broListing.id ? { ...x, brochureUrl: null, brochureKey: null } : x))
+      );
+
+      alert("✅ Brochure removed");
+      closeBrochurePopup();
+    } catch (e) {
+      console.error(e);
+      setBroErr(e?.message || "Failed to remove brochure");
+    } finally {
+      setBroUploading(false);
+    }
+  };
+
   const onCountryChange = (e) => {
     const slug = e.target.value;
     const c = COUNTRIES.find((x) => x.slug === slug);
@@ -388,8 +551,6 @@ export default function AddListingPage() {
       ...p,
       country: slug,
       city: c?.name || p.city,
-      // (optional) clear area when country changes
-      // area: "",
     }));
   };
 
@@ -438,8 +599,7 @@ export default function AddListingPage() {
     e.target.value = "";
   };
 
-  const removeGalleryItem = (idx) =>
-    setGalleryFiles((prev) => prev.filter((_, i) => i !== idx));
+  const removeGalleryItem = (idx) => setGalleryFiles((prev) => prev.filter((_, i) => i !== idx));
   const clearAllGallery = () => setGalleryFiles([]);
 
   const deleteExistingImage = async (imageId) => {
@@ -450,13 +610,10 @@ export default function AddListingPage() {
     try {
       const token = tokenOrThrow();
 
-      const res = await fetch(
-        `${API_BASE}/uploads/listing/${editingId}/images/${imageId}`,
-        {
-          method: "DELETE",
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
+      const res = await fetch(`${API_BASE}/uploads/listing/${editingId}/images/${imageId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error || "Failed to delete image");
@@ -500,9 +657,7 @@ export default function AddListingPage() {
   const onDeleteListing = async (listing) => {
     if (deletingId) return;
 
-    const ok = window.confirm(
-      `Delete listing "${listing.title}"?\n\nThis is a soft delete.`
-    );
+    const ok = window.confirm(`Delete listing "${listing.title}"?\n\nThis is a soft delete.`);
     if (!ok) return;
 
     setDeletingId(listing.id);
@@ -534,17 +689,13 @@ export default function AddListingPage() {
     if (togglingId) return;
 
     const nextHidden = !isHidden(listing);
-    const ok = window.confirm(
-      `${nextHidden ? "Hide" : "Unhide"} "${listing.title}"?`
-    );
+    const ok = window.confirm(`${nextHidden ? "Hide" : "Unhide"} "${listing.title}"?`);
     if (!ok) return;
 
     setTogglingId(listing.id);
     setListError("");
 
-    setItems((prev) =>
-      prev.map((x) => (x.id === listing.id ? { ...x, isHidden: nextHidden } : x))
-    );
+    setItems((prev) => prev.map((x) => (x.id === listing.id ? { ...x, isHidden: nextHidden } : x)));
 
     try {
       const token = tokenOrThrow();
@@ -628,9 +779,7 @@ export default function AddListingPage() {
         sizeSqft: toIntOrNull(form.sizeSqft),
         sizeSqm: toIntOrNull(form.sizeSqm),
 
-        assignedAgentId: form.assignedAgentId?.trim()
-          ? form.assignedAgentId.trim()
-          : null,
+        assignedAgentId: form.assignedAgentId?.trim() ? form.assignedAgentId.trim() : null,
       };
 
       let listingId = editingId;
@@ -646,8 +795,7 @@ export default function AddListingPage() {
         });
 
         const createJson = await createRes.json().catch(() => ({}));
-        if (!createRes.ok)
-          throw new Error(createJson?.error || "Failed to create listing");
+        if (!createRes.ok) throw new Error(createJson?.error || "Failed to create listing");
 
         listingId = createJson.id;
         if (!listingId) throw new Error("Create listing response missing id");
@@ -662,8 +810,7 @@ export default function AddListingPage() {
         });
 
         const updateJson = await updateRes.json().catch(() => ({}));
-        if (!updateRes.ok)
-          throw new Error(updateJson?.error || "Failed to update listing");
+        if (!updateRes.ok) throw new Error(updateJson?.error || "Failed to update listing");
       }
 
       const hasNewMedia = !!coverFile || galleryFiles.length > 0;
@@ -699,42 +846,34 @@ export default function AddListingPage() {
           });
 
           const presignJson = await presignRes.json().catch(() => ({}));
-          if (!presignRes.ok)
-            throw new Error(presignJson?.error || "Failed to presign uploads");
+          if (!presignRes.ok) throw new Error(presignJson?.error || "Failed to presign uploads");
 
           const uploads = presignJson.uploads || [];
           if (!uploads.length) throw new Error("No uploads returned from presign");
 
-          const allFilesInOrder = [
-            ...(coverFile ? [coverFile] : []),
-            ...galleryFiles,
-          ];
+          const allFilesInOrder = [...(coverFile ? [coverFile] : []), ...galleryFiles];
 
           for (let i = 0; i < uploads.length; i++) {
             await putToSignedUrl(uploads[i].uploadUrl, allFilesInOrder[i]);
           }
 
-          const saveRes = await fetch(
-            `${API_BASE}/uploads/listing/${listingId}/images`,
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${token}`,
-              },
-              body: JSON.stringify({
-                images: uploads.map((u) => ({
-                  key: u.key,
-                  url: u.publicUrl,
-                  isCover: !!u.isCover,
-                })),
-              }),
-            }
-          );
+          const saveRes = await fetch(`${API_BASE}/uploads/listing/${listingId}/images`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              images: uploads.map((u) => ({
+                key: u.key,
+                url: u.publicUrl,
+                isCover: !!u.isCover,
+              })),
+            }),
+          });
 
           const saveJson = await saveRes.json().catch(() => ({}));
-          if (!saveRes.ok)
-            throw new Error(saveJson?.error || "Failed to save images to DB");
+          if (!saveRes.ok) throw new Error(saveJson?.error || "Failed to save images to DB");
         }
       }
 
@@ -760,17 +899,10 @@ export default function AddListingPage() {
       ? { lat: Number(form.latitude), lng: Number(form.longitude) }
       : null;
 
-  // ✅ filtered items by agent before rendering list
   const visibleItems = useMemo(() => {
     if (agentFilterId === "ALL") return items;
-
     return items.filter((l) => {
-      const id =
-        l?.assignedAgentId ||
-        l?.assignedAgent?.id ||
-        l?.agentId ||
-        l?.agent?.id ||
-        "";
+      const id = l?.assignedAgentId || l?.assignedAgent?.id || l?.agentId || l?.agent?.id || "";
       return String(id) === String(agentFilterId);
     });
   }, [items, agentFilterId]);
@@ -785,19 +917,10 @@ export default function AddListingPage() {
           </div>
 
           <div style={{ display: "flex", gap: 10 }}>
-            <button
-              className="al-btn al-btnGhost"
-              type="button"
-              onClick={loadListings}
-              disabled={loading}
-            >
+            <button className="al-btn al-btnGhost" type="button" onClick={loadListings} disabled={loading}>
               {loading ? "Refreshing..." : "Refresh"}
             </button>
-            <button
-              className="al-btn al-btnPrimary"
-              type="button"
-              onClick={openModalCreate}
-            >
+            <button className="al-btn al-btnPrimary" type="button" onClick={openModalCreate}>
               + Add Listing
             </button>
           </div>
@@ -806,12 +929,8 @@ export default function AddListingPage() {
         {listError && <div className="al-alert">{listError}</div>}
 
         {/* Agent filter bar */}
-        <div
-          style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 12 }}
-        >
-          <div style={{ fontSize: 13, opacity: 0.8, minWidth: 90 }}>
-            Filter agent:
-          </div>
+        <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 12 }}>
+          <div style={{ fontSize: 13, opacity: 0.8, minWidth: 90 }}>Filter agent:</div>
           <select
             className="al-input"
             value={agentFilterId}
@@ -841,120 +960,193 @@ export default function AddListingPage() {
             {visibleItems.length === 0 ? (
               <div className="al-empty">No listings yet.</div>
             ) : (
-              visibleItems.map((l) => (
-                <div key={l.id} className="al-row">
-                  <div className="al-leftRow">
-                    <img
-                      className="al-thumb"
-                      src={
-                        coverUrl(l) || "https://via.placeholder.com/80x80?text=No+Img"
-                      }
-                      alt={l.title || "Listing"}
-                      onError={(e) => {
-                        e.currentTarget.src =
-                          "https://via.placeholder.com/80x80?text=No+Img";
-                      }}
-                    />
+              visibleItems.map((l) => {
+                const brochureUrl = pickBrochureUrl(l);
 
-                    <div className="al-meta">
-                      <div className="al-nameRow">
-                        <div className="al-name">{l.title}</div>
-                        {l.featured ? <span className="al-tag">Featured</span> : null}
-                        <span className="al-tag al-tagSoft">
-                          {badgeLabel(l.listingType)}
-                        </span>
-                        {isHidden(l) ? (
-                          <span className="al-tag al-tagHidden">Hidden</span>
-                        ) : null}
-                        {hasLocation(l) ? (
-                          <span className="al-tag al-tagSoft">Has location</span>
-                        ) : null}
-                      </div>
+                return (
+                  <div key={l.id} className="al-row">
+                    <div className="al-leftRow">
+                      <img
+                        className="al-thumb"
+                        src={coverUrl(l) || "https://via.placeholder.com/80x80?text=No+Img"}
+                        alt={l.title || "Listing"}
+                        onError={(e) => {
+                          e.currentTarget.src = "https://via.placeholder.com/80x80?text=No+Img";
+                        }}
+                      />
 
-                      <div className="al-line">
-                        {l.area} · {l.city}
-                        {l.country ? ` · ${l.country}` : ""}
-                      </div>
+                      <div className="al-meta">
+                        <div className="al-nameRow">
+                          <div className="al-name">{l.title}</div>
+                          {l.featured ? <span className="al-tag">Featured</span> : null}
+                          <span className="al-tag al-tagSoft">{badgeLabel(l.listingType)}</span>
+                          {isHidden(l) ? <span className="al-tag al-tagHidden">Hidden</span> : null}
+                          {hasLocation(l) ? <span className="al-tag al-tagSoft">Has location</span> : null}
+                          {brochureUrl ? <span className="al-tag al-tagSoft">Brochure</span> : null}
+                        </div>
 
-                      <div className="al-line al-lineMuted">
-                        {l.developerName ? `${l.developerName} · ` : ""}
-                        {l.startingPrice
-                          ? `${l.currency || "USD"} ${Number(
-                            l.startingPrice
-                          ).toLocaleString()}`
-                          : "No price"}{" "}
-                        · {Array.isArray(l.images) ? `${l.images.length} photos` : "0 photos"}
+                        <div className="al-line">
+                          {l.area} · {l.city}
+                          {l.country ? ` · ${l.country}` : ""}
+                        </div>
+
+                        <div className="al-line al-lineMuted">
+                          {l.developerName ? `${l.developerName} · ` : ""}
+                          {l.startingPrice
+                            ? `${l.currency || "USD"} ${Number(l.startingPrice).toLocaleString()}`
+                            : "No price"}{" "}
+                          · {Array.isArray(l.images) ? `${l.images.length} photos` : "0 photos"}
+                        </div>
                       </div>
                     </div>
+
+                    <div className="al-actionsRow">
+                      <button
+                        type="button"
+                        className="al-btn al-btnGhost"
+                        onClick={() => openModalEdit(l)}
+                        title="Edit listing"
+                      >
+                        Edit
+                      </button>
+
+                      <button
+                        type="button"
+                        className="al-btn al-btnGhost"
+                        onClick={() => openBrochurePopup(l)}
+                        title="Upload brochure PDF"
+                      >
+                        Brochure
+                      </button>
+
+                      <button
+                        type="button"
+                        className="al-btn al-btnGhost"
+                        disabled={togglingId === l.id}
+                        onClick={() => onToggleHidden(l)}
+                        title={isHidden(l) ? "Unhide listing" : "Hide listing"}
+                      >
+                        {togglingId === l.id ? "Updating…" : isHidden(l) ? "Unhide" : "Hide"}
+                      </button>
+
+                      <button
+                        type="button"
+                        className="al-btn al-btnDanger"
+                        disabled={deletingId === l.id}
+                        onClick={() => onDeleteListing(l)}
+                        title="Delete listing"
+                      >
+                        {deletingId === l.id ? "Deleting…" : "Delete"}
+                      </button>
+                    </div>
                   </div>
-
-                  <div className="al-actionsRow">
-                    <button
-                      type="button"
-                      className="al-btn al-btnGhost"
-                      onClick={() => openModalEdit(l)}
-                      title="Edit listing"
-                    >
-                      Edit
-                    </button>
-
-                    <button
-                      type="button"
-                      className="al-btn al-btnGhost"
-                      disabled={togglingId === l.id}
-                      onClick={() => onToggleHidden(l)}
-                      title={isHidden(l) ? "Unhide listing" : "Hide listing"}
-                    >
-                      {togglingId === l.id
-                        ? "Updating…"
-                        : isHidden(l)
-                          ? "Unhide"
-                          : "Hide"}
-                    </button>
-
-                    <button
-                      type="button"
-                      className="al-btn al-btnDanger"
-                      disabled={deletingId === l.id}
-                      onClick={() => onDeleteListing(l)}
-                      title="Delete listing"
-                    >
-                      {deletingId === l.id ? "Deleting…" : "Delete"}
-                    </button>
-                  </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         )}
       </div>
 
-      {open && (
-        <div className="al-modalOverlay" onClick={closeModal} role="presentation">
+      {/* ✅ Brochure popup modal */}
+      {broOpen && (
+        <div className="al-modalOverlay" onClick={closeBrochurePopup} role="presentation">
           <div
             className="al-modal"
             onClick={(e) => e.stopPropagation()}
             role="dialog"
             aria-modal="true"
+            style={{ maxWidth: 560 }}
           >
             <div className="al-modalHeader">
               <div>
-                <div className="al-modalTitle">
-                  {isEdit ? "Edit Listing" : "Add Listing"}
+                <div className="al-modalTitle">Brochure PDF</div>
+                <div className="al-modalSub">{broListing?.title ? `Listing: ${broListing.title}` : "Upload a brochure"}</div>
+              </div>
+
+              <button className="al-btn al-btnGhost" type="button" onClick={closeBrochurePopup} disabled={broUploading}>
+                Close
+              </button>
+            </div>
+
+            {broErr ? <div className="al-alert">{broErr}</div> : null}
+
+            <div style={{ padding: 14 }}>
+              <div
+                style={{
+                  border: "1px dashed rgba(0,0,0,0.15)",
+                  borderRadius: 14,
+                  padding: 16,
+                  background: "rgba(0,0,0,0.02)",
+                }}
+              >
+                <div style={{ fontWeight: 700, marginBottom: 6 }}>
+                  {pickBrochureUrl(broListing) ? "Current brochure is set ✅" : "No brochure uploaded yet"}
                 </div>
+
+                <div style={{ fontSize: 13, opacity: 0.75, marginBottom: 10 }}>
+                  PDF only · Max {Math.round(MAX_PDF_BYTES / (1024 * 1024))}MB
+                </div>
+
+                {pickBrochureUrl(broListing) ? (
+                  <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                    <a className="al-btn al-btnGhost" href={pickBrochureUrl(broListing)} target="_blank" rel="noreferrer">
+                      Open PDF
+                    </a>
+
+                    <button className="al-btn al-btnDanger" type="button" onClick={removeBrochure} disabled={broUploading}>
+                      Remove
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+
+              <div style={{ height: 14 }} />
+
+              <div>
+                <div className="al-label">Upload new brochure</div>
+                <input className="al-file" type="file" accept="application/pdf" onChange={onPickBrochure} disabled={broUploading} />
+
+                {broFile ? (
+                  <div style={{ marginTop: 10, fontSize: 13, opacity: 0.8 }}>
+                    Selected: <b>{broFile.name}</b> · {fmtBytes(broFile.size)}
+                  </div>
+                ) : (
+                  <div style={{ marginTop: 10, fontSize: 13, opacity: 0.7 }}>Choose a PDF file to upload.</div>
+                )}
+
+                <div style={{ display: "flex", gap: 10, marginTop: 14 }}>
+                  <button className="al-btn al-btnPrimary" type="button" onClick={uploadBrochure} disabled={broUploading}>
+                    {broUploading ? "Uploading..." : "Upload PDF"}
+                  </button>
+
+                  <button className="al-btn al-btnGhost" type="button" onClick={() => setBroFile(null)} disabled={broUploading}>
+                    Clear
+                  </button>
+                </div>
+
+                <div style={{ marginTop: 10, fontSize: 12, opacity: 0.65 }}>
+                  Uses: <code>POST /uploads/presign</code> (type listing-brochure) → <code>PUT</code> →{" "}
+                  <code>POST /uploads/listing/:id/brochure</code>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Existing listing create/edit modal */}
+      {open && (
+        <div className="al-modalOverlay" onClick={closeModal} role="presentation">
+          <div className="al-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+            <div className="al-modalHeader">
+              <div>
+                <div className="al-modalTitle">{isEdit ? "Edit Listing" : "Add Listing"}</div>
                 <div className="al-modalSub">
-                  {isEdit
-                    ? "Update fields. Media is optional unless you want to replace it."
-                    : "Create a new listing and upload cover + gallery images."}
+                  {isEdit ? "Update fields. Media is optional unless you want to replace it." : "Create a new listing and upload cover + gallery images."}
                 </div>
               </div>
 
-              <button
-                className="al-btn al-btnGhost"
-                type="button"
-                onClick={closeModal}
-                disabled={saving}
-              >
+              <button className="al-btn al-btnGhost" type="button" onClick={closeModal} disabled={saving}>
                 Close
               </button>
             </div>
@@ -972,17 +1164,10 @@ export default function AddListingPage() {
                     {coverPreview ? (
                       <img className="al-previewImg" src={coverPreview} alt="Cover preview" />
                     ) : isEdit && editingCoverUrl ? (
-                      <img
-                        className="al-previewImg"
-                        src={editingCoverUrl}
-                        alt="Current cover"
-                        onError={(e) => (e.currentTarget.style.display = "none")}
-                      />
+                      <img className="al-previewImg" src={editingCoverUrl} alt="Current cover" onError={(e) => (e.currentTarget.style.display = "none")} />
                     ) : (
                       <div className="al-dropInner">
-                        <div className="al-dropTitle">
-                          {isEdit ? "Keep current cover or pick a new one" : "Choose cover image"}
-                        </div>
+                        <div className="al-dropTitle">{isEdit ? "Keep current cover or pick a new one" : "Choose cover image"}</div>
                         <div className="al-dropHint">PNG/JPG · Max 100MB</div>
                       </div>
                     )}
@@ -999,12 +1184,7 @@ export default function AddListingPage() {
                     </div>
 
                     {galleryFiles.length > 0 && (
-                      <button
-                        type="button"
-                        className="al-btn al-btnGhost"
-                        onClick={clearAllGallery}
-                        disabled={saving}
-                      >
+                      <button type="button" className="al-btn al-btnGhost" onClick={clearAllGallery} disabled={saving}>
                         Clear
                       </button>
                     )}
@@ -1017,12 +1197,7 @@ export default function AddListingPage() {
                       {galleryPreviews.map((p, idx) => (
                         <div key={`${p.name}-${idx}`} className="al-galleryItem">
                           <img src={p.url} alt={p.name} />
-                          <button
-                            type="button"
-                            className="al-galleryRemove"
-                            onClick={() => removeGalleryItem(idx)}
-                            aria-label="Remove image"
-                          >
+                          <button type="button" className="al-galleryRemove" onClick={() => removeGalleryItem(idx)} aria-label="Remove image">
                             ×
                           </button>
                         </div>
@@ -1032,28 +1207,15 @@ export default function AddListingPage() {
                     <div className="al-galleryGrid">
                       {editingGalleryImages.map((img, idx) => (
                         <div key={`${img.id}-${idx}`} className="al-galleryItem">
-                          <img
-                            src={img.url}
-                            alt={`Gallery ${idx + 1}`}
-                            onError={(e) => {
-                              e.currentTarget.style.display = "none";
-                            }}
-                          />
-                          <button
-                            type="button"
-                            className="al-galleryRemove"
-                            onClick={() => deleteExistingImage(img.id)}
-                            aria-label="Delete image"
-                          >
+                          <img src={img.url} alt={`Gallery ${idx + 1}`} onError={(e) => (e.currentTarget.style.display = "none")} />
+                          <button type="button" className="al-galleryRemove" onClick={() => deleteExistingImage(img.id)} aria-label="Delete image">
                             ×
                           </button>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <div className="al-emptyGallery">
-                      {isEdit ? "No gallery images for this listing yet." : "No gallery images selected."}
-                    </div>
+                    <div className="al-emptyGallery">{isEdit ? "No gallery images for this listing yet." : "No gallery images selected."}</div>
                   )}
                 </div>
 
@@ -1106,12 +1268,7 @@ export default function AddListingPage() {
 
                       <div style={{ marginTop: 10 }}>
                         <div className="al-label">Address label (optional)</div>
-                        <input
-                          className="al-input"
-                          value={form.addressText}
-                          onChange={set("addressText")}
-                          placeholder="Dubai Marina, near Metro..."
-                        />
+                        <input className="al-input" value={form.addressText} onChange={set("addressText")} placeholder="Dubai Marina, near Metro..." />
                         <div className="al-miniHint" style={{ marginTop: 6 }}>
                           Leave empty if you only want pin coordinates.
                         </div>
@@ -1142,7 +1299,6 @@ export default function AddListingPage() {
                       <input className="al-input" value={form.city} onChange={set("city")} />
                     </div>
 
-                    {/* ✅ Area / Community from REAL DB (search + still can type new) */}
                     <div>
                       <div className="al-label">Area / Community *</div>
                       <input
@@ -1158,9 +1314,7 @@ export default function AddListingPage() {
                           <option key={a} value={a} />
                         ))}
                       </datalist>
-                      <div className="al-miniHint">
-                        {areasLoading ? "Searching existing areas…" : "Pick an existing area or type a new one."}
-                      </div>
+                      <div className="al-miniHint">{areasLoading ? "Searching existing areas…" : "Pick an existing area or type a new one."}</div>
                     </div>
 
                     <div>

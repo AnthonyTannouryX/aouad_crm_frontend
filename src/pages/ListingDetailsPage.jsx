@@ -22,10 +22,7 @@ const TILE_URL_EN = "https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png";
 const API_BASE = import.meta.env.VITE_API_BASE || "/api";
 
 /* ================= FX ================= */
-// Supported UI currencies
 const FX_SYMBOLS = ["USD", "EUR", "AED"];
-
-// Providers (we try multiple because CORS/network can break one of them)
 const FX_PROVIDER_FRANKFURTER = "https://api.frankfurter.app"; // base: EUR
 const FX_PROVIDER_ERAPI = "https://open.er-api.com/v6/latest/EUR"; // base: EUR
 
@@ -51,11 +48,6 @@ function formatInt(n) {
   }
 }
 
-/** ✅ NEW: format label by listing type
- * OFF_PLAN => From USD 350,000
- * FOR_SALE => USD 350,000
- * FOR_RENT => USD 1,500 / month
- */
 function formatPriceLabel({ listingType, currency, amount }) {
   const a = toMoneyNumber(amount);
   if (!a || a <= 0) return "Price on request";
@@ -68,10 +60,6 @@ function formatPriceLabel({ listingType, currency, amount }) {
   return `${ccy} ${num}`;
 }
 
-/**
- * Convert amount between currencies using EUR pivot.
- * ratesEurBased: { USD: 1.09, AED: 4.01 } where base=EUR.
- */
 function convertViaEur(amount, from, to, ratesEurBased) {
   const a = toMoneyNumber(amount);
   if (a == null || a <= 0) return null;
@@ -118,13 +106,6 @@ async function fetchJsonWithTimeout(url, { signal, timeoutMs = 8000 } = {}) {
   }
 }
 
-/**
- * Loads EUR-based rates for USD/AED.
- * Strategy:
- *  1) Try same-origin backend proxy (if you later add /fx route)
- *  2) Try Frankfurter
- *  3) Try ER-API fallback
- */
 async function loadFxRatesEurBased(signal) {
   // 1) Backend proxy (optional)
   try {
@@ -213,8 +194,7 @@ export default function ListingDetailsPage() {
 
       return {
         ...raw,
-        mainImageUrl:
-          raw.mainImageUrl || raw.coverImageUrl || raw.heroImageUrl || raw.imageUrl || "",
+        mainImageUrl: raw.mainImageUrl || raw.coverImageUrl || raw.heroImageUrl || raw.imageUrl || "",
         images: Array.isArray(raw.images)
           ? raw.images
           : Array.isArray(raw.gallery)
@@ -235,6 +215,16 @@ export default function ListingDetailsPage() {
         completionYear: raw.completionYear || raw.handover || raw.completion_date || "",
         addressText: raw.addressText || raw.address || raw.location || "",
         community: raw.community || raw.area || "",
+
+        // ✅ brochure url normalization (supports multiple possible backend field names)
+        brochureUrl:
+          raw.brochureUrl ||
+          raw.brochureURL ||
+          raw.brochure ||
+          raw.brochureLink ||
+          raw.pdfUrl ||
+          raw.pdfURL ||
+          null,
       };
     }
 
@@ -363,7 +353,6 @@ export default function ListingDetailsPage() {
   const baseCcy = useMemo(() => String(item?.currency || "USD").toUpperCase(), [item?.currency]);
   const baseAmount = useMemo(() => toMoneyNumber(item?.startingPrice), [item?.startingPrice]);
 
-  // ✅ default tab = listing currency (so AED listings show AED right away)
   useEffect(() => {
     if (!item) return;
     setFxTo(FX_SYMBOLS.includes(baseCcy) ? baseCcy : "USD");
@@ -386,6 +375,29 @@ export default function ListingDetailsPage() {
 
     return { currency: fxTo, amount: conv };
   }, [canConvert, baseAmount, baseCcy, fxTo, fx.loading, fx.err, fx.rates]);
+
+  // ✅ BROCHURE: reliable click handler
+  const onBrochure = () => {
+    const url = String(item?.brochureUrl || "").trim();
+    if (!url) return;
+
+    // remove later if you want:
+    console.log("Downloading brochure:", url);
+
+    // try open in new tab
+    const w = window.open(url, "_blank", "noopener,noreferrer");
+    if (w) return;
+
+    // fallback: programmatic click
+    const a = document.createElement("a");
+    a.href = url;
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    a.download = "brochure.pdf";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  };
 
   if (loading) {
     return (
@@ -417,7 +429,6 @@ export default function ListingDetailsPage() {
 
   if (!item) return null;
 
-  // ✅ show assignedAgent OR agent
   const agentObj = item.assignedAgent || item.agent || null;
 
   const agentName = agentObj?.fullName || "Agent Name";
@@ -594,9 +605,15 @@ export default function ListingDetailsPage() {
             </div>
 
             <div className="ld-actionsRow">
-              <a className="ld-btn" href="#" onClick={(e) => e.preventDefault()}>
-                Download Brochure
-              </a>
+              {item.brochureUrl ? (
+                <button className="ld-btn" type="button" onClick={onBrochure}>
+                  Download Brochure
+                </button>
+              ) : (
+                <button className="ld-btn" type="button" disabled title="No brochure uploaded">
+                  Download Brochure
+                </button>
+              )}
 
               <div className="ld-actionsIcons">
                 <button className="ld-ico-btn" type="button" onClick={onScheduleCall} title="Schedule a call">

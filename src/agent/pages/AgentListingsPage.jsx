@@ -1,10 +1,12 @@
 // src/agent/pages/AgentAddListingPage.jsx
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import "./AgentListingsPage.css";
 import LocationPicker from "../../admin/components/LocationPicker.jsx";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:4000/api";
-const MAX_BYTES = 100 * 1024 * 1024;
+
+const MAX_BYTES = 100 * 1024 * 1024; // 100MB images
+const MAX_PDF_BYTES = 50 * 1024 * 1024; // brochures max (match your frontend preference)
 
 const LISTING_TYPES = [
     { value: "OFF_PLAN", label: "Off-Plan" },
@@ -42,7 +44,7 @@ const COUNTRIES = [
 function fileExt(file) {
     const name = file?.name || "";
     const dot = name.lastIndexOf(".");
-    if (dot === -1) return "jpg";
+    if (dot === -1) return "bin";
     return name.slice(dot + 1).toLowerCase();
 }
 
@@ -78,6 +80,25 @@ function hasLocation(listing) {
     );
 }
 
+function pickBrochureUrl(listing) {
+    return (
+        listing?.brochureUrl ||
+        listing?.brochurePDF ||
+        listing?.brochurePdfUrl ||
+        listing?.brochure ||
+        ""
+    );
+}
+
+function fmtBytes(n) {
+    const v = Number(n || 0);
+    if (!Number.isFinite(v) || v <= 0) return "";
+    const mb = v / (1024 * 1024);
+    if (mb >= 1) return `${mb.toFixed(mb >= 10 ? 0 : 1)} MB`;
+    const kb = v / 1024;
+    return `${kb.toFixed(kb >= 10 ? 0 : 1)} KB`;
+}
+
 export default function AgentAddListingPage() {
     const [items, setItems] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -90,6 +111,13 @@ export default function AgentAddListingPage() {
 
     const [editingId, setEditingId] = useState(null);
     const [editingCoverUrl, setEditingCoverUrl] = useState("");
+
+    // ✅ Brochure modal state
+    const [broOpen, setBroOpen] = useState(false);
+    const [broListing, setBroListing] = useState(null);
+    const [broFile, setBroFile] = useState(null);
+    const [broUploading, setBroUploading] = useState(false);
+    const [broErr, setBroErr] = useState("");
 
     const [form, setForm] = useState({
         country: "dubai",
@@ -136,9 +164,7 @@ export default function AgentAddListingPage() {
             form.area.trim().length >= 2 &&
             form.city.trim().length >= 2;
 
-        const hasCover =
-            !!coverFile || (isEdit && (editingCoverUrl || "").trim().length > 0);
-
+        const hasCover = !!coverFile || (isEdit && (editingCoverUrl || "").trim().length > 0);
         return baseOk && hasCover;
     }, [form.title, form.area, form.city, coverFile, isEdit, editingCoverUrl]);
 
@@ -289,8 +315,14 @@ export default function AgentAddListingPage() {
         const file = e.target.files?.[0];
         if (!file) return;
 
-        if (!file.type.startsWith("image/")) return setError("Please select an image file.");
-        if (file.size > MAX_BYTES) return setError("Image is too large. Max 100MB.");
+        if (!file.type.startsWith("image/")) {
+            setError("Please select an image file.");
+            return;
+        }
+        if (file.size > MAX_BYTES) {
+            setError("Image is too large. Max 100MB.");
+            return;
+        }
 
         setError("");
         setCoverFile(file);
@@ -324,8 +356,7 @@ export default function AgentAddListingPage() {
         e.target.value = "";
     };
 
-    const removeGalleryItem = (idx) =>
-        setGalleryFiles((prev) => prev.filter((_, i) => i !== idx));
+    const removeGalleryItem = (idx) => setGalleryFiles((prev) => prev.filter((_, i) => i !== idx));
     const clearAllGallery = () => setGalleryFiles([]);
 
     useEffect(() => {
@@ -359,9 +390,7 @@ export default function AgentAddListingPage() {
         setTogglingId(listing.id);
         setListError("");
 
-        setItems((prev) =>
-            prev.map((x) => (x.id === listing.id ? { ...x, isHidden: nextHidden } : x))
-        );
+        setItems((prev) => prev.map((x) => (x.id === listing.id ? { ...x, isHidden: nextHidden } : x)));
 
         try {
             const token = tokenOrThrow();
@@ -551,6 +580,144 @@ export default function AgentAddListingPage() {
         }
     };
 
+    // ✅ Brochure modal handlers (same logic as admin fixed version)
+    const openBrochurePopup = (listing) => {
+        setBroErr("");
+        setBroFile(null);
+        setBroListing(listing);
+        setBroOpen(true);
+    };
+
+    const closeBrochurePopup = () => {
+        if (broUploading) return;
+        setBroOpen(false);
+        setBroListing(null);
+        setBroFile(null);
+        setBroErr("");
+    };
+
+    const onPickBrochure = (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        if (file.type !== "application/pdf") {
+            setBroErr("Please select a PDF file.");
+            e.target.value = "";
+            return;
+        }
+        if (file.size > MAX_PDF_BYTES) {
+            setBroErr(`PDF is too large. Max ${Math.round(MAX_PDF_BYTES / (1024 * 1024))}MB.`);
+            e.target.value = "";
+            return;
+        }
+
+        setBroErr("");
+        setBroFile(file);
+        e.target.value = "";
+    };
+
+    const uploadBrochure = async () => {
+        if (!broListing?.id) return;
+        if (!broFile) {
+            setBroErr("Pick a PDF first.");
+            return;
+        }
+
+        setBroUploading(true);
+        setBroErr("");
+
+        try {
+            const token = tokenOrThrow();
+
+            // 1) presign
+            const presignRes = await fetch(`${API_BASE}/uploads/presign`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify({
+                    type: "listing-brochure",
+                    listingId: broListing.id,
+                    contentType: "application/pdf",
+                    ext: "pdf",
+                    sizeBytes: broFile.size,
+                }),
+            });
+
+            const presignJson = await presignRes.json().catch(() => ({}));
+            if (!presignRes.ok) throw new Error(presignJson?.error || "Failed to presign brochure upload");
+
+            const u = presignJson?.uploads?.[0];
+            if (!u?.uploadUrl || !u?.publicUrl || !u?.key) {
+                throw new Error("Presign response missing uploadUrl/publicUrl/key");
+            }
+
+            // 2) put to r2
+            await putToSignedUrl(u.uploadUrl, broFile);
+
+            // 3) save to db (your route)
+            const saveRes = await fetch(`${API_BASE}/uploads/listing/${broListing.id}/brochure`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify({ key: u.key, url: u.publicUrl }),
+            });
+
+            const saveJson = await saveRes.json().catch(() => ({}));
+            if (!saveRes.ok) throw new Error(saveJson?.error || "Failed to save brochure to DB");
+
+            // update list
+            setItems((prev) =>
+                prev.map((x) => (x.id === broListing.id ? { ...x, brochureUrl: u.publicUrl, brochureKey: u.key } : x))
+            );
+
+            setBroFile(null);
+            alert("✅ Brochure uploaded");
+            closeBrochurePopup();
+        } catch (e) {
+            console.error(e);
+            setBroErr(e?.message || "Failed to upload brochure");
+        } finally {
+            setBroUploading(false);
+        }
+    };
+
+    const removeBrochure = async () => {
+        if (!broListing?.id) return;
+        const ok = window.confirm("Remove brochure from this listing?");
+        if (!ok) return;
+
+        setBroUploading(true);
+        setBroErr("");
+
+        try {
+            const token = tokenOrThrow();
+
+            const res = await fetch(`${API_BASE}/uploads/listing/${broListing.id}/brochure`, {
+                method: "DELETE",
+                headers: { Authorization: `Bearer ${token}` },
+            });
+
+            const json = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(json?.error || "Failed to remove brochure");
+
+            setItems((prev) =>
+                prev.map((x) => (x.id === broListing.id ? { ...x, brochureUrl: null, brochureKey: null } : x))
+            );
+
+            alert("✅ Brochure removed");
+            closeBrochurePopup();
+        } catch (e) {
+            console.error(e);
+            setBroErr(e?.message || "Failed to remove brochure");
+        } finally {
+            setBroUploading(false);
+        }
+    };
+
     const countryCenter = useMemo(() => {
         const c = COUNTRIES.find((x) => x.slug === form.country);
         return c?.center || { lat: 25.2048, lng: 55.2708 };
@@ -583,65 +750,164 @@ export default function AgentAddListingPage() {
                 {listError && <div className="agl-alert">{listError}</div>}
 
                 {loading ? (
-                    <div className="agl-muted" style={{ marginTop: 14 }}>Loading…</div>
+                    <div className="agl-muted" style={{ marginTop: 14 }}>
+                        Loading…
+                    </div>
                 ) : (
                     <div className="agl-list">
                         {items.length === 0 ? (
                             <div className="agl-empty">No listings yet.</div>
                         ) : (
-                            items.map((l) => (
-                                <div key={l.id} className="agl-row">
-                                    <div className="agl-leftRow">
-                                        <img
-                                            className="agl-thumb"
-                                            src={coverUrl(l) || "https://via.placeholder.com/80x80?text=No+Img"}
-                                            alt={l.title || "Listing"}
-                                            onError={(e) => (e.currentTarget.src = "https://via.placeholder.com/80x80?text=No+Img")}
-                                        />
+                            items.map((l) => {
+                                const brochureUrl = pickBrochureUrl(l);
 
-                                        <div className="agl-meta">
-                                            <div className="agl-nameRow">
-                                                <div className="agl-name">{l.title}</div>
-                                                {l.featured ? <span className="agl-tag">Featured</span> : null}
-                                                <span className="agl-tag agl-tagSoft">{badgeLabel(l.listingType)}</span>
-                                                {isHidden(l) ? <span className="agl-tag agl-tagHidden">Hidden</span> : null}
-                                                {hasLocation(l) ? <span className="agl-tag agl-tagSoft">Has location</span> : null}
-                                            </div>
+                                return (
+                                    <div key={l.id} className="agl-row">
+                                        <div className="agl-leftRow">
+                                            <img
+                                                className="agl-thumb"
+                                                src={coverUrl(l) || "https://via.placeholder.com/80x80?text=No+Img"}
+                                                alt={l.title || "Listing"}
+                                                onError={(e) => (e.currentTarget.src = "https://via.placeholder.com/80x80?text=No+Img")}
+                                            />
 
-                                            <div className="agl-line">
-                                                {l.area} · {l.city}
-                                                {l.country ? ` · ${l.country}` : ""}
-                                            </div>
+                                            <div className="agl-meta">
+                                                <div className="agl-nameRow">
+                                                    <div className="agl-name">{l.title}</div>
+                                                    {l.featured ? <span className="agl-tag">Featured</span> : null}
+                                                    <span className="agl-tag agl-tagSoft">{badgeLabel(l.listingType)}</span>
+                                                    {isHidden(l) ? <span className="agl-tag agl-tagHidden">Hidden</span> : null}
+                                                    {hasLocation(l) ? <span className="agl-tag agl-tagSoft">Has location</span> : null}
+                                                    {brochureUrl ? <span className="agl-tag agl-tagSoft">Brochure</span> : null}
+                                                </div>
 
-                                            <div className="agl-line agl-lineMuted">
-                                                {l.developerName ? `${l.developerName} · ` : ""}
-                                                {l.startingPrice ? `${l.currency || "USD"} ${Number(l.startingPrice).toLocaleString()}` : "No price"} ·{" "}
-                                                {Array.isArray(l.images) ? `${l.images.length} photos` : "0 photos"}
+                                                <div className="agl-line">
+                                                    {l.area} · {l.city}
+                                                    {l.country ? ` · ${l.country}` : ""}
+                                                </div>
+
+                                                <div className="agl-line agl-lineMuted">
+                                                    {l.developerName ? `${l.developerName} · ` : ""}
+                                                    {l.startingPrice
+                                                        ? `${l.currency || "USD"} ${Number(l.startingPrice).toLocaleString()}`
+                                                        : "No price"}{" "}
+                                                    · {Array.isArray(l.images) ? `${l.images.length} photos` : "0 photos"}
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
 
-                                    <div className="agl-actionsRow">
-                                        <button type="button" className="agl-btn agl-btnGhost" onClick={() => openModalEdit(l)}>
-                                            Edit
-                                        </button>
+                                        <div className="agl-actionsRow">
+                                            <button type="button" className="agl-btn agl-btnGhost" onClick={() => openModalEdit(l)}>
+                                                Edit
+                                            </button>
 
-                                        <button
-                                            type="button"
-                                            className="agl-btn agl-btnGhost"
-                                            disabled={togglingId === l.id}
-                                            onClick={() => onToggleHidden(l)}
-                                        >
-                                            {togglingId === l.id ? "Updating…" : isHidden(l) ? "Unhide" : "Hide"}
-                                        </button>
+                                            {/* ✅ NEW: Brochure */}
+                                            <button type="button" className="agl-btn agl-btnGhost" onClick={() => openBrochurePopup(l)}>
+                                                Brochure
+                                            </button>
+
+                                            <button
+                                                type="button"
+                                                className="agl-btn agl-btnGhost"
+                                                disabled={togglingId === l.id}
+                                                onClick={() => onToggleHidden(l)}
+                                            >
+                                                {togglingId === l.id ? "Updating…" : isHidden(l) ? "Unhide" : "Hide"}
+                                            </button>
+                                        </div>
                                     </div>
-                                </div>
-                            ))
+                                );
+                            })
                         )}
                     </div>
                 )}
             </div>
 
+            {/* ✅ Brochure modal */}
+            {broOpen && (
+                <div className="agl-modalOverlay" onClick={closeBrochurePopup} role="presentation">
+                    <div
+                        className="agl-modal"
+                        onClick={(e) => e.stopPropagation()}
+                        role="dialog"
+                        aria-modal="true"
+                        style={{ maxWidth: 560 }}
+                    >
+                        <div className="agl-modalHeader">
+                            <div>
+                                <div className="agl-modalTitle">Brochure PDF</div>
+                                <div className="agl-modalSub">{broListing?.title ? `Listing: ${broListing.title}` : "Upload a brochure"}</div>
+                            </div>
+
+                            <button className="agl-btn agl-btnGhost" type="button" onClick={closeBrochurePopup} disabled={broUploading}>
+                                Close
+                            </button>
+                        </div>
+
+                        {broErr ? <div className="agl-alert">{broErr}</div> : null}
+
+                        <div style={{ padding: 14 }}>
+                            <div
+                                style={{
+                                    border: "1px dashed rgba(0,0,0,0.15)",
+                                    borderRadius: 14,
+                                    padding: 16,
+                                    background: "rgba(0,0,0,0.02)",
+                                }}
+                            >
+                                <div style={{ fontWeight: 700, marginBottom: 6 }}>
+                                    {pickBrochureUrl(broListing) ? "Current brochure is set ✅" : "No brochure uploaded yet"}
+                                </div>
+
+                                <div style={{ fontSize: 13, opacity: 0.75, marginBottom: 10 }}>
+                                    PDF only · Max {Math.round(MAX_PDF_BYTES / (1024 * 1024))}MB
+                                </div>
+
+                                {pickBrochureUrl(broListing) ? (
+                                    <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                                        <a className="agl-btn agl-btnGhost" href={pickBrochureUrl(broListing)} target="_blank" rel="noreferrer">
+                                            Open PDF
+                                        </a>
+                                        <button className="agl-btn agl-btnDanger" type="button" onClick={removeBrochure} disabled={broUploading}>
+                                            Remove
+                                        </button>
+                                    </div>
+                                ) : null}
+                            </div>
+
+                            <div style={{ height: 14 }} />
+
+                            <div>
+                                <div className="agl-label">Upload new brochure</div>
+                                <input className="agl-file" type="file" accept="application/pdf" onChange={onPickBrochure} disabled={broUploading} />
+
+                                {broFile ? (
+                                    <div style={{ marginTop: 10, fontSize: 13, opacity: 0.8 }}>
+                                        Selected: <b>{broFile.name}</b> · {fmtBytes(broFile.size)}
+                                    </div>
+                                ) : (
+                                    <div style={{ marginTop: 10, fontSize: 13, opacity: 0.7 }}>Choose a PDF file to upload.</div>
+                                )}
+
+                                <div style={{ display: "flex", gap: 10, marginTop: 14 }}>
+                                    <button className="agl-btn agl-btnPrimary" type="button" onClick={uploadBrochure} disabled={broUploading}>
+                                        {broUploading ? "Uploading..." : "Upload PDF"}
+                                    </button>
+                                    <button className="agl-btn agl-btnGhost" type="button" onClick={() => setBroFile(null)} disabled={broUploading}>
+                                        Clear
+                                    </button>
+                                </div>
+
+                                <div style={{ marginTop: 10, fontSize: 12, opacity: 0.65 }}>
+                                    Uses: <code>POST /uploads/presign</code> → <code>PUT</code> → <code>POST /uploads/listing/:id/brochure</code>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Create/Edit modal */}
             {open && (
                 <div className="agl-modalOverlay" onClick={closeModal} role="presentation">
                     <div className="agl-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
@@ -684,7 +950,9 @@ export default function AgentAddListingPage() {
 
                                     <div className="agl-mediaTop">
                                         <div>
-                                            <div className="agl-label" style={{ marginBottom: 2 }}>Gallery images</div>
+                                            <div className="agl-label" style={{ marginBottom: 2 }}>
+                                                Gallery images
+                                            </div>
                                             <div className="agl-miniHint">Optional</div>
                                         </div>
 
@@ -722,7 +990,9 @@ export default function AgentAddListingPage() {
                                             <div className="agl-label">Country *</div>
                                             <select className="agl-input" value={form.country} onChange={onCountryChange}>
                                                 {COUNTRIES.map((c) => (
-                                                    <option key={c.slug} value={c.slug}>{c.name}</option>
+                                                    <option key={c.slug} value={c.slug}>
+                                                        {c.name}
+                                                    </option>
                                                 ))}
                                             </select>
                                             <div className="agl-miniHint">This powers /listings?country={form.country}</div>
@@ -738,7 +1008,13 @@ export default function AgentAddListingPage() {
                                             <LocationPicker
                                                 value={locationValue}
                                                 defaultCenter={countryCenter}
-                                                onChange={({ lat, lng }) => setForm((p) => ({ ...p, latitude: String(lat), longitude: String(lng) }))}
+                                                onChange={({ lat, lng }) =>
+                                                    setForm((p) => ({
+                                                        ...p,
+                                                        latitude: String(lat),
+                                                        longitude: String(lng),
+                                                    }))
+                                                }
                                                 height={260}
                                             />
 
@@ -763,7 +1039,9 @@ export default function AgentAddListingPage() {
                                             <div className="agl-label">Listing Type</div>
                                             <select className="agl-input" value={form.listingType} onChange={set("listingType")}>
                                                 {LISTING_TYPES.map((t) => (
-                                                    <option key={t.value} value={t.value}>{t.label}</option>
+                                                    <option key={t.value} value={t.value}>
+                                                        {t.label}
+                                                    </option>
                                                 ))}
                                             </select>
                                         </div>
@@ -790,7 +1068,9 @@ export default function AgentAddListingPage() {
                                             <div className="agl-label">Property Type</div>
                                             <select className="agl-input" value={form.propertyType} onChange={set("propertyType")}>
                                                 {PROPERTY_TYPES.map((t) => (
-                                                    <option key={t.value} value={t.value}>{t.label}</option>
+                                                    <option key={t.value} value={t.value}>
+                                                        {t.label}
+                                                    </option>
                                                 ))}
                                             </select>
                                         </div>
@@ -799,7 +1079,9 @@ export default function AgentAddListingPage() {
                                             <div className="agl-label">Category</div>
                                             <select className="agl-input" value={form.category} onChange={set("category")}>
                                                 {CATEGORIES.map((c) => (
-                                                    <option key={c.value} value={c.value}>{c.label}</option>
+                                                    <option key={c.value} value={c.value}>
+                                                        {c.label}
+                                                    </option>
                                                 ))}
                                             </select>
                                         </div>
@@ -828,7 +1110,9 @@ export default function AgentAddListingPage() {
                                             <div className="agl-label">Currency</div>
                                             <select className="agl-input" value={form.currency} onChange={set("currency")}>
                                                 {CURRENCIES.map((c) => (
-                                                    <option key={c} value={c}>{c}</option>
+                                                    <option key={c} value={c}>
+                                                        {c}
+                                                    </option>
                                                 ))}
                                             </select>
                                         </div>
