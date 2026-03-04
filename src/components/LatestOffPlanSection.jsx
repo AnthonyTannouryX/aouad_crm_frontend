@@ -34,12 +34,34 @@ export default function LatestOffPlanSection() {
       return Array.isArray(list) ? list : [];
     }
 
+    // ✅ fallback sorting if backend doesn't sort yet
+    function sortFeatured(list) {
+      return [...list].sort((a, b) => {
+        const af = a?.featured ? 1 : 0;
+        const bf = b?.featured ? 1 : 0;
+        if (af !== bf) return bf - af; // featured first
+
+        const ao = Number(a?.featuredOrder ?? 0);
+        const bo = Number(b?.featuredOrder ?? 0);
+        if (ao !== bo) return ao - bo; // lower order = higher priority
+
+        const ad = new Date(a?.createdAt || a?.updatedAt || 0).getTime() || 0;
+        const bd = new Date(b?.createdAt || b?.updatedAt || 0).getTime() || 0;
+        return bd - ad; // newest first as tie-breaker
+      });
+    }
+
     async function load() {
       try {
         setLoading(true);
 
+        // ✅ best: backend sorts by featuredOrder
         const candidates = [
+          `${API_BASE}/public/listings?listingType=OFF_PLAN&featured=true&sort=featuredOrder&limit=${PAGE_LIMIT}`,
+          `${API_BASE}/public/listings?listingType=OFF_PLAN&featured=true&orderBy=featuredOrder&limit=${PAGE_LIMIT}`,
           `${API_BASE}/public/listings?listingType=OFF_PLAN&featured=true&limit=${PAGE_LIMIT}`,
+
+          // your old fallbacks
           `${API_BASE}/public/listings?listingType=OFFPLAN&featured=true&limit=${PAGE_LIMIT}`,
           `${API_BASE}/public/listings?category=OFF_PLAN&featured=true&limit=${PAGE_LIMIT}`,
           `${API_BASE}/public/listings?projectType=OFF_PLAN&featured=true&limit=${PAGE_LIMIT}`,
@@ -63,7 +85,9 @@ export default function LatestOffPlanSection() {
         }
 
         if (!alive) return;
-        setItems(list);
+
+        // ✅ only sort client-side as a fallback
+        setItems(sortFeatured(list));
         void lastErr;
       } catch (e) {
         console.error(e);
