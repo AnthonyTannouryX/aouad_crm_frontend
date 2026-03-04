@@ -2,22 +2,19 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import "./AddListingPage.css";
 import LocationPicker from "../components/LocationPicker.jsx";
-
+// ✅ local fallback (no network)
+const FALLBACK_THUMB = `data:image/svg+xml;utf8,${encodeURIComponent(`
+  <svg xmlns="http://www.w3.org/2000/svg" width="80" height="80">
+    <rect width="100%" height="100%" fill="#f2f2f2"/>
+    <path d="M20 54l10-12 10 12 10-14 10 14" fill="none" stroke="#b5b5b5" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="30" cy="30" r="6" fill="#b5b5b5"/>
+    <text x="50%" y="72%" text-anchor="middle" font-family="Arial" font-size="10" fill="#8a8a8a">No Image</text>
+  </svg>
+`)}`;
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:4000/api";
 
 const MAX_BYTES = 100 * 1024 * 1024; // 100MB images
 const MAX_PDF_BYTES = 50 * 1024 * 1024; // brochures: 50MB
-
-// ✅ local fallback (no external DNS)
-const NO_IMG =
-  "data:image/svg+xml;utf8," +
-  encodeURIComponent(`
-    <svg xmlns="http://www.w3.org/2000/svg" width="80" height="80">
-      <rect width="100%" height="100%" fill="#eee"/>
-      <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle"
-        font-family="Arial" font-size="12" fill="#777">No Img</text>
-    </svg>
-  `);
 
 const LISTING_TYPES = [
   { value: "OFF_PLAN", label: "Off-Plan" },
@@ -147,6 +144,28 @@ function compareFeatured(a, b) {
   return bt - at;
 }
 
+/* =========================
+   ✅ NEW: sold/rented helpers
+========================= */
+function isSold(listing) {
+  return String(listing?.status || "").trim().toUpperCase() === "SOLD";
+}
+function isRented(listing) {
+  const st = String(listing?.status || "").trim().toUpperCase();
+  return st === "RENTED" || st === "RENTED_OUT" || st === "LEASED" || st === "TAKEN";
+}
+
+function canMarkSoldOrRented(listing) {
+  const t = String(listing?.listingType || "").toUpperCase();
+  return t === "FOR_SALE" || t === "FOR_RENT";
+}
+function statusBadge(listing) {
+  const t = String(listing?.listingType || "").toUpperCase();
+  if (t === "FOR_SALE" && isSold(listing)) return "Sold";
+  if (t === "FOR_RENT" && isRented(listing)) return "Rented";
+  return "";
+}
+
 export default function AddListingPage() {
   // list
   const [items, setItems] = useState([]);
@@ -154,6 +173,7 @@ export default function AddListingPage() {
   const [listError, setListError] = useState("");
   const [deletingId, setDeletingId] = useState(null);
   const [togglingId, setTogglingId] = useState(null);
+  const [statusTogglingId, setStatusTogglingId] = useState(null); // ✅ NEW
 
   // agents
   const [agents, setAgents] = useState([]);
@@ -161,7 +181,7 @@ export default function AddListingPage() {
 
   // filters
   const [agentFilterId, setAgentFilterId] = useState("ALL");
-  const [typeFilter, setTypeFilter] = useState("ALL"); // ✅ listingType filter
+  const [typeFilter, setTypeFilter] = useState("ALL");
 
   // listing modal
   const [open, setOpen] = useState(false);
@@ -180,7 +200,7 @@ export default function AddListingPage() {
   const [broUploading, setBroUploading] = useState(false);
   const [broErr, setBroErr] = useState("");
 
-  // order popup
+  // order popup (kept for OFF_PLAN)
   const [ordOpen, setOrdOpen] = useState(false);
   const [ordListing, setOrdListing] = useState(null);
   const [ordValue, setOrdValue] = useState("");
@@ -588,7 +608,7 @@ export default function AddListingPage() {
     }
   };
 
-  // order popup
+  // order popup (OFF_PLAN only)
   const openOrderPopup = (listing) => {
     if (!listing?.featured) {
       alert("Order is only for Featured listings.");
@@ -651,6 +671,61 @@ export default function AddListingPage() {
       setOrdErr(e?.message || "Failed to save order");
     } finally {
       setOrdSaving(false);
+    }
+  };
+
+  /* =========================
+     ✅ NEW: Sold/Rented toggle
+  ========================= */
+  const onToggleSoldRented = async (listing) => {
+    if (!listing?.id) return;
+    if (statusTogglingId) return;
+
+    const lt = String(listing?.listingType || "").toUpperCase();
+    if (lt !== "FOR_SALE" && lt !== "FOR_RENT") return;
+
+    const nextStatus =
+      lt === "FOR_SALE"
+        ? (isSold(listing) ? "AVAILABLE" : "SOLD")
+        : (isRented(listing) ? "AVAILABLE" : "RENTED");
+
+    const label =
+      lt === "FOR_SALE"
+        ? (nextStatus === "SOLD" ? "mark as SOLD" : "mark as AVAILABLE")
+        : (nextStatus === "RENTED" ? "mark as RENTED" : "mark as AVAILABLE");
+
+    const ok = window.confirm(`Are you sure you want to ${label}?\n\nListing: "${listing.title}"`);
+    if (!ok) return;
+
+    setStatusTogglingId(listing.id);
+    setListError("");
+
+    // optimistic
+    setItems((prev) => prev.map((x) => (x.id === listing.id ? { ...x, status: nextStatus } : x)));
+
+    try {
+      const token = tokenOrThrow();
+
+      const res = await fetch(`${API_BASE}/listings/${listing.id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ status: nextStatus }),
+      });
+
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        await loadListings();
+        throw new Error(json?.error || "Failed to update listing status");
+      }
+    } catch (e) {
+      console.error(e);
+      setListError(e?.message || "Failed to update status");
+      await loadListings();
+    } finally {
+      setStatusTogglingId(null);
     }
   };
 
@@ -995,7 +1070,7 @@ export default function AddListingPage() {
       ? { lat: Number(form.latitude), lng: Number(form.longitude) }
       : null;
 
-  // ✅ filter by agent + listingType + order
+  // filter by agent + listingType + order
   const visibleItems = useMemo(() => {
     let filtered = items;
 
@@ -1034,7 +1109,7 @@ export default function AddListingPage() {
 
         {listError && <div className="al-alert">{listError}</div>}
 
-        {/* Filters bar */}
+        {/* Filters bar (Agent + Type) */}
         <div style={{ display: "flex", gap: 12, alignItems: "center", marginTop: 12, flexWrap: "wrap" }}>
           <div style={{ fontSize: 13, opacity: 0.8, minWidth: 90 }}>Filter agent:</div>
           <select
@@ -1084,29 +1159,48 @@ export default function AddListingPage() {
               visibleItems.map((l) => {
                 const brochureUrl = pickBrochureUrl(l);
                 const hasOrder = Number.isFinite(Number(l?.featuredOrder));
+                const sr = statusBadge(l);
+                const lt = String(l?.listingType || "").toUpperCase();
+                const showOrder = lt === "OFF_PLAN";
+                const showSoldRented = lt === "FOR_SALE" || lt === "FOR_RENT";
+
+                const srBtnLabel =
+                  lt === "FOR_SALE"
+                    ? (isSold(l) ? "Mark Available" : "Sold")
+                    : (isRented(l) ? "Mark Available" : "Rented");
 
                 return (
                   <div key={l.id} className="al-row">
                     <div className="al-leftRow">
                       <img
                         className="al-thumb"
-                        src={coverUrl(l) || NO_IMG}
+                        src={coverUrl(l) || FALLBACK_THUMB}
                         alt={l.title || "Listing"}
+                        loading="lazy"
                         onError={(e) => {
-                          e.currentTarget.onerror = null;
-                          e.currentTarget.src = NO_IMG;
+                          // ✅ prevent infinite loop
+                          if (e.currentTarget.src !== FALLBACK_THUMB) {
+                            e.currentTarget.src = FALLBACK_THUMB;
+                          }
                         }}
                       />
 
                       <div className="al-meta">
                         <div className="al-nameRow">
                           <div className="al-name">{l.title}</div>
+
                           {l.featured ? <span className="al-tag">Featured</span> : null}
                           <span className="al-tag al-tagSoft">{badgeLabel(l.listingType)}</span>
+
+                          {/* ✅ NEW: Sold/Rented badge */}
+                          {sr ? <span className="al-tag al-tagSoft">{sr}</span> : null}
+
                           {isHidden(l) ? <span className="al-tag al-tagHidden">Hidden</span> : null}
                           {hasLocation(l) ? <span className="al-tag al-tagSoft">Has location</span> : null}
                           {brochureUrl ? <span className="al-tag al-tagSoft">Brochure</span> : null}
-                          {l.featured ? (
+
+                          {/* keep "Order:" pill only for OFF_PLAN */}
+                          {showOrder && l.featured ? (
                             <span className="al-tag al-tagSoft">Order: {hasOrder ? Number(l.featuredOrder) : "—"}</span>
                           ) : null}
                         </div>
@@ -1127,24 +1221,47 @@ export default function AddListingPage() {
                     </div>
 
                     <div className="al-actionsRow">
-                      <button type="button" className="al-btn al-btnGhost" onClick={() => openModalEdit(l)} title="Edit listing">
+                      <button
+                        type="button"
+                        className="al-btn al-btnGhost"
+                        onClick={() => openModalEdit(l)}
+                        title="Edit listing"
+                      >
                         Edit
-                      </button>
-
-                      <button type="button" className="al-btn al-btnGhost" onClick={() => openBrochurePopup(l)} title="Upload brochure PDF">
-                        Brochure
                       </button>
 
                       <button
                         type="button"
                         className="al-btn al-btnGhost"
-                        onClick={() => openOrderPopup(l)}
-                        disabled={!l.featured}
-                        title={l.featured ? "Set featured order" : "Only Featured listings can be ordered"}
-                        style={!l.featured ? { opacity: 0.5, cursor: "not-allowed" } : undefined}
+                        onClick={() => openBrochurePopup(l)}
+                        title="Upload brochure PDF"
                       >
-                        Order
+                        Brochure
                       </button>
+
+                      {/* ✅ OFF_PLAN keeps Order. FOR_SALE/FOR_RENT gets Sold/Rented toggle */}
+                      {showOrder ? (
+                        <button
+                          type="button"
+                          className="al-btn al-btnGhost"
+                          onClick={() => openOrderPopup(l)}
+                          disabled={!l.featured}
+                          title={l.featured ? "Set featured order" : "Only Featured listings can be ordered"}
+                          style={!l.featured ? { opacity: 0.5, cursor: "not-allowed" } : undefined}
+                        >
+                          Order
+                        </button>
+                      ) : showSoldRented ? (
+                        <button
+                          type="button"
+                          className="al-btn al-btnGhost"
+                          onClick={() => onToggleSoldRented(l)}
+                          disabled={statusTogglingId === l.id}
+                          title={lt === "FOR_SALE" ? "Toggle Sold/Available" : "Toggle Rented/Available"}
+                        >
+                          {statusTogglingId === l.id ? "Updating…" : srBtnLabel}
+                        </button>
+                      ) : null}
 
                       <button
                         type="button"
@@ -1174,7 +1291,7 @@ export default function AddListingPage() {
         )}
       </div>
 
-      {/* Order modal */}
+      {/* Order modal (OFF_PLAN only) */}
       {ordOpen && (
         <div className="al-modalOverlay" onClick={closeOrderPopup} role="presentation">
           <div
@@ -1239,13 +1356,7 @@ export default function AddListingPage() {
       {/* Brochure modal */}
       {broOpen && (
         <div className="al-modalOverlay" onClick={closeBrochurePopup} role="presentation">
-          <div
-            className="al-modal"
-            onClick={(e) => e.stopPropagation()}
-            role="dialog"
-            aria-modal="true"
-            style={{ maxWidth: 560 }}
-          >
+          <div className="al-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" style={{ maxWidth: 560 }}>
             <div className="al-modalHeader">
               <div>
                 <div className="al-modalTitle">Brochure PDF</div>
@@ -1331,9 +1442,7 @@ export default function AddListingPage() {
               <div>
                 <div className="al-modalTitle">{isEdit ? "Edit Listing" : "Add Listing"}</div>
                 <div className="al-modalSub">
-                  {isEdit
-                    ? "Update fields. Media is optional unless you want to replace it."
-                    : "Create a new listing and upload cover + gallery images."}
+                  {isEdit ? "Update fields. Media is optional unless you want to replace it." : "Create a new listing and upload cover + gallery images."}
                 </div>
               </div>
 
@@ -1344,7 +1453,7 @@ export default function AddListingPage() {
 
             {error && <div className="al-alert">{error}</div>}
 
-            {/* form */}
+            {/* your existing form stays the same */}
             <form onSubmit={onSubmit} className="al-form">
               <div className="al-grid">
                 {/* LEFT: Media */}
@@ -1356,15 +1465,7 @@ export default function AddListingPage() {
                     {coverPreview ? (
                       <img className="al-previewImg" src={coverPreview} alt="Cover preview" />
                     ) : isEdit && editingCoverUrl ? (
-                      <img
-                        className="al-previewImg"
-                        src={editingCoverUrl}
-                        alt="Current cover"
-                        onError={(e) => {
-                          e.currentTarget.onerror = null;
-                          e.currentTarget.src = NO_IMG;
-                        }}
-                      />
+                      <img className="al-previewImg" src={editingCoverUrl} alt="Current cover" onError={(e) => (e.currentTarget.style.display = "none")} />
                     ) : (
                       <div className="al-dropInner">
                         <div className="al-dropTitle">{isEdit ? "Keep current cover or pick a new one" : "Choose cover image"}</div>
@@ -1396,14 +1497,7 @@ export default function AddListingPage() {
                     <div className="al-galleryGrid">
                       {galleryPreviews.map((p, idx) => (
                         <div key={`${p.name}-${idx}`} className="al-galleryItem">
-                          <img
-                            src={p.url}
-                            alt={p.name}
-                            onError={(e) => {
-                              e.currentTarget.onerror = null;
-                              e.currentTarget.src = NO_IMG;
-                            }}
-                          />
+                          <img src={p.url} alt={p.name} />
                           <button type="button" className="al-galleryRemove" onClick={() => removeGalleryItem(idx)} aria-label="Remove image">
                             ×
                           </button>
@@ -1414,14 +1508,7 @@ export default function AddListingPage() {
                     <div className="al-galleryGrid">
                       {editingGalleryImages.map((img, idx) => (
                         <div key={`${img.id}-${idx}`} className="al-galleryItem">
-                          <img
-                            src={img.url}
-                            alt={`Gallery ${idx + 1}`}
-                            onError={(e) => {
-                              e.currentTarget.onerror = null;
-                              e.currentTarget.src = NO_IMG;
-                            }}
-                          />
+                          <img src={img.url} alt={`Gallery ${idx + 1}`} onError={(e) => (e.currentTarget.style.display = "none")} />
                           <button type="button" className="al-galleryRemove" onClick={() => deleteExistingImage(img.id)} aria-label="Delete image">
                             ×
                           </button>
@@ -1508,14 +1595,7 @@ export default function AddListingPage() {
 
                     <div>
                       <div className="al-label">Area / Community *</div>
-                      <input
-                        className="al-input"
-                        value={form.area}
-                        onChange={set("area")}
-                        placeholder="Start typing…"
-                        list="al-area-datalist"
-                        autoComplete="off"
-                      />
+                      <input className="al-input" value={form.area} onChange={set("area")} placeholder="Start typing…" list="al-area-datalist" autoComplete="off" />
                       <datalist id="al-area-datalist">
                         {areaOptions.map((a) => (
                           <option key={a} value={a} />

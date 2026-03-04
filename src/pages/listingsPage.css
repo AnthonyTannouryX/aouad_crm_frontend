@@ -661,3 +661,45 @@
   display: grid;
   gap: 12px;
 }
+
+.ll-media {
+  position: relative;
+}
+
+.ll-soldBar {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 70%;
+  padding: 16px 0;
+  text-align: center;
+  text-transform: uppercase;
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: 0.28em;
+  color: #fff;
+  border-radius: 999px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.28);
+  z-index: 10;
+  pointer-events: none;
+}
+
+/* SOLD OUT = RED */
+.ll-soldBar.is-sold {
+  background: linear-gradient(135deg, #ff4b4b, #d81f1f);
+}
+
+/* RENTED = BLUE */
+.ll-soldBar.is-rented {
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+}
+
+@media (max-width: 768px) {
+  .ll-soldBar {
+    width: 86%;
+    font-size: 18px;
+    padding: 14px 0;
+    letter-spacing: 0.18em;
+  }
+}

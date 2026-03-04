@@ -86,7 +86,7 @@ function areaLabel(p) {
     const n = Number(p.sizeSqm);
     if (!Number.isNaN(n) && n > 0) return `${n.toLocaleString()} m²`;
   }
-  if (p?.sizeSqft != null && p.sizeSqft !== "") {
+  if (p?.sizeSqft != null && p?.sizeSqft !== "") {
     const n = Number(p.sizeSqft);
     if (!Number.isNaN(n) && n > 0) return `${n.toLocaleString()} sq.ft`;
   }
@@ -97,18 +97,41 @@ function typeLabel(p) {
   return p?.propertyType || "Property";
 }
 
-function statusLabel(p) {
+function listingTypeLabel(p) {
   if (p?.listingType === "FOR_RENT") return "For Rent";
   if (p?.listingType === "FOR_SALE") return "For Sale";
   if (p?.listingType === "OFF_PLAN") return "Off-Plan";
   return "Listing";
 }
 
+/**
+ * ✅ Availability badge (Sold/Rented) per listingType
+ * - FOR_SALE + status SOLD => SOLD OUT
+ * - FOR_RENT + status RENTED => RENTED
+ */
+function availabilityBadge(p) {
+  const lt = String(p?.listingType || "").toUpperCase();
+  const st = String(p?.status || "").toUpperCase();
+
+  if (lt === "FOR_SALE" && st === "SOLD") return "SOLD OUT";
+  if (lt === "FOR_RENT" && st === "RENTED") return "RENTED";
+  return "";
+}
+
+/** ✅ For styling: tells us if it’s sold or rented */
+function availabilityKind(p) {
+  const lt = String(p?.listingType || "").toUpperCase();
+  const st = String(p?.status || "").toUpperCase();
+
+  if (lt === "FOR_SALE" && st === "SOLD") return "sold";
+  if (lt === "FOR_RENT" && st === "RENTED") return "rented";
+  return "";
+}
+
 /** ✅ derive a location label from whatever backend returns */
 function pickLocationLabel(p) {
   const s = (v) => String(v || "").trim();
 
-  // common fields
   const loc =
     s(p?.locationLabel) ||
     s(p?.location) ||
@@ -120,20 +143,17 @@ function pickLocationLabel(p) {
 
   if (loc) return loc;
 
-  // last resort: build from pieces
   const parts = [s(p?.area), s(p?.city), s(p?.country)].filter(Boolean);
   return parts.length ? parts.join(", ") : "-";
 }
 
 /** ✅ derive a main image from ListingImage[] or other shapes */
 function pickMainImage(p) {
-  // already prepared by some endpoints
   if (p?.mainImageUrl) return p.mainImageUrl;
   if (p?.coverImageUrl) return p.coverImageUrl;
   if (p?.heroImageUrl) return p.heroImageUrl;
   if (p?.imageUrl) return p.imageUrl;
 
-  // Prisma ListingImage[]
   const imgs = Array.isArray(p?.images) ? p.images : [];
   const cover =
     imgs.find((x) => x?.isCover)?.url ||
@@ -141,7 +161,6 @@ function pickMainImage(p) {
 
   if (cover) return cover;
 
-  // other possible arrays
   const gallery = Array.isArray(p?.gallery) ? p.gallery : [];
   const media = Array.isArray(p?.media) ? p.media : [];
 
@@ -162,8 +181,6 @@ export default function ListingsPage() {
   const country = (q.get("country") || "").trim().toLowerCase();
   const countryLabel = country ? COUNTRY_LABELS[country] || country : "";
 
-  // ✅ decide which listings to show based on route
-  // /rent => FOR_RENT, /sale => FOR_SALE, otherwise all
   const listingType = useMemo(() => {
     if (loc.pathname === "/rent") return "FOR_RENT";
     if (loc.pathname === "/sale") return "FOR_SALE";
@@ -198,7 +215,6 @@ export default function ListingsPage() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
 
-  // drawer lock + ESC
   useEffect(() => {
     const prev = document.body.style.overflow;
     if (filtersOpen) document.body.style.overflow = "hidden";
@@ -214,7 +230,7 @@ export default function ListingsPage() {
     };
   }, [filtersOpen]);
 
-  // ✅ Fetch listings from public endpoint
+  // ✅ Fetch listings
   useEffect(() => {
     let alive = true;
 
@@ -228,7 +244,6 @@ export default function ListingsPage() {
         if (country) url.searchParams.set("country", country);
         if (listingType) url.searchParams.set("listingType", listingType);
 
-        // Optional: if you pass listingType in query param from hero/navbar, support it too
         const qpListingType = (q.get("listingType") || "").trim();
         if (qpListingType) url.searchParams.set("listingType", qpListingType);
 
@@ -254,21 +269,16 @@ export default function ListingsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [country, listingType, loc.search]);
 
-  // ✅ Build dropdown options dynamically from data (DEDUPED by normalized key)
+  // ✅ Dropdown options
   const locationOptions = useMemo(() => {
-    const map = new Map(); // normalized -> display label
-
+    const map = new Map();
     rawItems.forEach((p) => {
       const raw = pickLocationLabel(p);
       if (!raw || raw === "-") return;
-
       const key = normalizeLocation(raw);
       if (!key) return;
-
-      // keep first nice label (and make it consistent)
       if (!map.has(key)) map.set(key, titleCase(raw.trim()));
     });
-
     return ["Any location", ...Array.from(map.values()).sort((a, b) => a.localeCompare(b))];
   }, [rawItems]);
 
@@ -294,50 +304,39 @@ export default function ListingsPage() {
   const filteredRaw = useMemo(() => {
     let list = [...rawItems];
 
-    // ✅ location (case/format-insensitive)
     if (locationFilter !== "Any location") {
       const selected = normalizeLocation(locationFilter);
       list = list.filter((p) => normalizeLocation(pickLocationLabel(p)) === selected);
     }
 
-    // type
     if (typeFilter !== "Type") {
       list = list.filter(
-        (p) =>
-          String(p?.propertyType || "")
-            .trim()
-            .toLowerCase() === typeFilter.toLowerCase()
+        (p) => String(p?.propertyType || "").trim().toLowerCase() === typeFilter.toLowerCase()
       );
     }
 
-    // developer
     if (developer !== "Any developer") {
       list = list.filter((p) => {
-        const d = String(p?.developer || p?.developerName || "")
-          .trim()
-          .toLowerCase();
+        const d = String(p?.developer || p?.developerName || "").trim().toLowerCase();
         return d === developer.toLowerCase();
       });
     }
 
-    // ✅ price min/max (typed)
     const min = Number(String(priceMin || "").replace(/,/g, ""));
     const max = Number(String(priceMax || "").replace(/,/g, ""));
-
     const hasMin = Number.isFinite(min) && min > 0;
     const hasMax = Number.isFinite(max) && max > 0;
 
     if (hasMin || hasMax) {
       list = list.filter((p) => {
         const n = xNumSafe(p?.priceFrom ?? p?.startingPrice ?? p?.price);
-        if (!Number.isFinite(n) || n <= 0) return false; // "price on request" excluded when filtering
+        if (!Number.isFinite(n) || n <= 0) return false;
         if (hasMin && n < min) return false;
         if (hasMax && n > max) return false;
         return true;
       });
     }
 
-    // sort
     if (sort === "Price: Low to High") {
       list.sort(
         (a, b) =>
@@ -355,7 +354,7 @@ export default function ListingsPage() {
     return list;
   }, [rawItems, locationFilter, typeFilter, developer, priceMin, priceMax, sort]);
 
-  // ✅ Map to card shape (NO carousel dots)
+  // ✅ Map to card shape (+ rented color)
   const items = useMemo(() => {
     return filteredRaw.map((p) => ({
       id: p.id,
@@ -368,7 +367,9 @@ export default function ListingsPage() {
         p.meta?.title ||
         "Property",
       type: typeLabel(p),
-      status: statusLabel(p),
+      listingTypeText: listingTypeLabel(p),
+      availability: availabilityBadge(p), // SOLD OUT / RENTED / ""
+      availabilityKind: availabilityKind(p), // sold / rented / ""
       price: formatPrice(p),
       location: pickLocationLabel(p),
       beds: p.bedrooms ?? "-",
@@ -379,7 +380,6 @@ export default function ListingsPage() {
     }));
   }, [filteredRaw]);
 
-  // reset filters when switching base route/country
   useEffect(() => {
     setLocationFilter("Any location");
     setTypeFilter("Type");
@@ -403,7 +403,6 @@ export default function ListingsPage() {
   return (
     <main className="lp2">
       <div className="lp2-inner">
-        {/* title */}
         <div className="lp2-top">
           <h1 className="lp2-title">
             {pageTitle}{" "}
@@ -411,23 +410,9 @@ export default function ListingsPage() {
           </h1>
         </div>
 
-        {/* filters row */}
         <div className="lp2-filters">
-          <SelectPill
-            icon={<FaMapMarkerAlt />}
-            value={locationFilter}
-            onChange={setLocationFilter}
-            options={locationOptions}
-          />
-
-          <SelectPill
-            icon={<FaHome />}
-            value={typeFilter}
-            onChange={setTypeFilter}
-            options={typeOptions}
-          />
-
-          {/* ✅ custom price range dropdown */}
+          <SelectPill icon={<FaMapMarkerAlt />} value={locationFilter} onChange={setLocationFilter} options={locationOptions} />
+          <SelectPill icon={<FaHome />} value={typeFilter} onChange={setTypeFilter} options={typeOptions} />
           <PriceRangePill icon={<FaTag />} min={priceMin} max={priceMax} onMin={setPriceMin} onMax={setPriceMax} />
 
           <button className="lp2-more" type="button" onClick={() => setFiltersOpen(true)}>
@@ -435,7 +420,6 @@ export default function ListingsPage() {
           </button>
         </div>
 
-        {/* results row */}
         <div className="lp2-row">
           <div className="lp2-count">
             {loading ? "Loading..." : err ? err : `Showing ${items.length} results`}
@@ -454,7 +438,6 @@ export default function ListingsPage() {
           </div>
         </div>
 
-        {/* grid */}
         {loading ? (
           <div className="lp2-empty">Loading…</div>
         ) : err ? (
@@ -485,11 +468,20 @@ export default function ListingsPage() {
                     <div className="ll-img" style={{ background: "#eee" }} />
                   )}
 
-                  {/* ✅ NO watermark circles, NO carousel dots */}
+                  {/* ✅ ADD THIS: centered bar + color by kind */}
+                  {x.availability ? (
+                    <div className={"ll-soldBar " + (x.availabilityKind === "rented" ? "is-rented" : "is-sold")}>
+                      {x.availability}
+                    </div>
+                  ) : null}
+
                   <div className="ll-tags">
                     <span className="ll-tag ll-tag--black">{x.brand}</span>
                     <span className="ll-tag ll-tag--light">{x.type}</span>
-                    <span className="ll-tag ll-tag--gray">{x.status}</span>
+                    <span className="ll-tag ll-tag--gray">{x.listingTypeText}</span>
+
+                    {/* keep your small tag too if you want (optional) */}
+                    {/* {x.availability ? <span className="ll-tag ll-tag--gray">{x.availability}</span> : null} */}
                   </div>
                 </div>
 
@@ -528,7 +520,6 @@ export default function ListingsPage() {
         )}
       </div>
 
-      {/* DRAWER */}
       <div className={"lp2-dim" + (filtersOpen ? " is-open" : "")} onClick={() => setFiltersOpen(false)} />
 
       <aside className={"lp2-drawer" + (filtersOpen ? " is-open" : "")} aria-hidden={!filtersOpen}>
@@ -556,7 +547,6 @@ export default function ListingsPage() {
               <DrawerSelect value={developer} onChange={setDeveloper} options={developerOptions} />
             </div>
 
-            {/* ✅ Drawer custom price */}
             <div className="lp2-field">
               <div className="lp2-lbl">Price Range</div>
               <div className="lp2-priceDrawer">
@@ -646,7 +636,6 @@ function PriceRangePill({ icon, min, max, onMin, onMax }) {
     return `Up to ${b}`;
   })();
 
-  // close on outside click
   useEffect(() => {
     if (!open) return;
     const onDown = (e) => {
