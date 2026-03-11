@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:4000/api";
+
+// set this to your exact listings page route
+const MANAGE_LISTINGS_PATH = "/admin/search-listings";
 
 // ✅ adjust if your token key is different
 function getToken() {
@@ -17,6 +21,7 @@ async function safeJson(res) {
 }
 
 export default function SettingsPage() {
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
 
   // form state
@@ -55,6 +60,10 @@ export default function SettingsPage() {
   function close() {
     setOpen(false);
     resetForm();
+  }
+
+  function handleManageListings() {
+    navigate(MANAGE_LISTINGS_PATH);
   }
 
   useEffect(() => {
@@ -135,14 +144,18 @@ export default function SettingsPage() {
         <div className="adm-cardHead">
           <div className="adm-cardTitle">Settings</div>
 
-          <button className="adm-btn" type="button" onClick={() => setOpen(true)}>
-            Change password
-          </button>
+          <div className="adm-actions">
+            <button className="adm-btn adm-btnAlt" type="button" onClick={handleManageListings}>
+              Manage listings
+            </button>
+
+            <button className="adm-btn" type="button" onClick={() => setOpen(true)}>
+              Change password
+            </button>
+          </div>
         </div>
 
-        <div className="adm-muted">
-          Next: lead sources, statuses, pipelines, permissions.
-        </div>
+
       </div>
 
       {open && (
@@ -256,7 +269,6 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {/* Local styles (no external CSS required) */}
       <style>{`
         .adm-card {
           border-radius: 16px;
@@ -283,6 +295,13 @@ export default function SettingsPage() {
           letter-spacing: 0.02em;
         }
 
+        .adm-actions{
+          display:flex;
+          align-items:center;
+          gap:10px;
+          flex-wrap:wrap;
+        }
+
         .adm-muted {
           color: rgba(255,255,255,0.65);
           font-size: 14px;
@@ -300,10 +319,14 @@ export default function SettingsPage() {
           font-size: 14px;
           transition: transform .06s ease, background .15s ease;
         }
+
+        .adm-btnAlt {
+          background: rgba(255,255,255,0.04);
+        }
+
         .adm-btn:hover { background: rgba(255,255,255,0.12); }
         .adm-btn:active { transform: translateY(1px); }
 
-        /* Modal overlay */
         .adm-modalOverlay {
           position: fixed;
           inset: 0;
@@ -312,6 +335,7 @@ export default function SettingsPage() {
           place-items: center;
           padding: 16px;
         }
+
         .adm-modalBackdrop {
           position: absolute;
           inset: 0;
@@ -330,7 +354,6 @@ export default function SettingsPage() {
           overflow: hidden;
         }
 
-        /* Mobile: bottom sheet full-width */
         @media (max-width: 520px){
           .adm-modalOverlay { padding: 0; place-items: end center; }
           .adm-modal {
@@ -348,11 +371,13 @@ export default function SettingsPage() {
           padding: 14px 14px 12px;
           border-bottom: 1px solid rgba(255,255,255,0.08);
         }
+
         .adm-modalTitle{
           font-size: 16px;
           font-weight: 800;
           letter-spacing: 0.02em;
         }
+
         .adm-iconBtn{
           width: 36px;
           height: 36px;
@@ -372,6 +397,7 @@ export default function SettingsPage() {
           overflow: auto;
           max-height: 70vh;
         }
+
         @media (max-width: 520px){
           .adm-modalBody{ max-height: calc(92vh - 58px); }
         }
@@ -400,7 +426,9 @@ export default function SettingsPage() {
           outline: none;
           font-size: 14px;
         }
+
         .adm-input::placeholder{ color: rgba(255,255,255,0.35); }
+
         .adm-input:focus{
           border-color: rgba(255,255,255,0.22);
           background: rgba(255,255,255,0.08);
@@ -417,6 +445,7 @@ export default function SettingsPage() {
           font-size: 13px;
           white-space: nowrap;
         }
+
         .adm-ghostBtn:hover{ background: rgba(255,255,255,0.08); }
 
         .adm-hint{
@@ -439,6 +468,7 @@ export default function SettingsPage() {
           color: rgba(255,255,255,0.95);
           font-size: 13px;
         }
+
         .adm-successBox{
           padding: 10px 12px;
           border-radius: 12px;
@@ -468,6 +498,7 @@ export default function SettingsPage() {
           background: rgba(255,255,255,0.06);
           color: rgba(255,255,255,0.92);
         }
+
         .adm-btnPrimary{
           background: rgba(255,255,255,0.14);
           color: #fff;

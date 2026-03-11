@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import "./latestListingsSection.css";
 
@@ -12,18 +12,10 @@ import {
 } from "react-icons/fa";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "/api";
-const RANDOM_COUNT = 9;
+const DISPLAY_COUNT = 8;
+const FETCH_LIMIT = 50;
 
 /* ================= helpers ================= */
-function shuffleArray(arr) {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-}
-
 function toMoneyNumber(v) {
   if (v == null) return null;
   if (typeof v === "number" && Number.isFinite(v)) return v;
@@ -36,21 +28,23 @@ function toMoneyNumber(v) {
   return Number.isFinite(n) ? n : null;
 }
 
+function toOrder(v) {
+  const n = Number(v);
+  return Number.isFinite(n) && n > 0 ? n : 999999;
+}
+
 function formatInt(n) {
   const num = Number(n);
   if (!Number.isFinite(num)) return "-";
   try {
-    return new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }).format(num);
+    return new Intl.NumberFormat(undefined, {
+      maximumFractionDigits: 0,
+    }).format(num);
   } catch {
     return num.toLocaleString();
   }
 }
 
-/**
- * ✅ Price rules for this section:
- * - FOR_RENT => <listing currency> <amount> / month
- * - FOR_SALE => USD <amount>   (force USD label)
- */
 function formatCardPrice(p) {
   const listingType = (p?.listingType || "").toUpperCase();
 
@@ -69,33 +63,45 @@ function formatCardPrice(p) {
     return `${cur} ${num} / month`;
   }
 
-  // FOR_SALE (and default)
   return `USD ${num}`;
 }
 
-// mode: "all" | "rent" | "sale"
+function isListingItem(item) {
+  return item?.listingType === "FOR_SALE" || item?.listingType === "FOR_RENT";
+}
+
+function sortByFeaturedOrder(a, b) {
+  const aOrder = toOrder(a?.featuredOrder);
+  const bOrder = toOrder(b?.featuredOrder);
+
+  if (aOrder !== bOrder) return aOrder - bOrder;
+
+  return String(a?.title || "").localeCompare(String(b?.title || ""));
+}
+
 export default function LatestListingsSection({ mode = "all" }) {
   const navigate = useNavigate();
 
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // dropdown state
   const [ddOpen, setDdOpen] = useState(false);
   const ddRef = useRef(null);
 
-  // close dropdown on outside click + ESC
   useEffect(() => {
     const onDown = (e) => {
       if (!ddRef.current) return;
       if (!ddRef.current.contains(e.target)) setDdOpen(false);
     };
+
     const onKey = (e) => {
       if (e.key === "Escape") setDdOpen(false);
     };
+
     document.addEventListener("mousedown", onDown);
     document.addEventListener("touchstart", onDown, { passive: true });
     document.addEventListener("keydown", onKey);
+
     return () => {
       document.removeEventListener("mousedown", onDown);
       document.removeEventListener("touchstart", onDown);
@@ -116,47 +122,46 @@ export default function LatestListingsSection({ mode = "all" }) {
         ? "FOR SALE"
         : "LATEST LISTINGS";
 
-  /* ================= FETCH ================= */
   useEffect(() => {
     let alive = true;
 
-    async function fetchType(listingType) {
-      const qs = new URLSearchParams();
-      qs.set("listingType", listingType);
-      qs.set("limit", "200"); // fetch enough to randomize
-
-      const res = await fetch(`${API_BASE}/public/listings?${qs.toString()}`);
+    async function fetchJson(url) {
+      const res = await fetch(url);
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error || "Fetch failed");
-
-      const list = Array.isArray(data) ? data : data.items;
-      return Array.isArray(list) ? list : [];
+      return Array.isArray(data) ? data : Array.isArray(data?.items) ? data.items : [];
     }
 
     async function load() {
       try {
         setLoading(true);
 
-        let merged = [];
+        let list = [];
 
         if (mode === "sale") {
-          merged = await fetchType("FOR_SALE");
+          list = await fetchJson(
+            `${API_BASE}/public/listings?listingType=FOR_SALE&featured=true&sort=featuredOrder&limit=${FETCH_LIMIT}`
+          );
         } else if (mode === "rent") {
-          merged = await fetchType("FOR_RENT");
+          list = await fetchJson(
+            `${API_BASE}/public/listings?listingType=FOR_RENT&featured=true&sort=featuredOrder&limit=${FETCH_LIMIT}`
+          );
         } else {
-          const [sale, rent] = await Promise.all([
-            fetchType("FOR_SALE"),
-            fetchType("FOR_RENT"),
-          ]);
-          merged = [...sale, ...rent];
+          const merged = await fetchJson(
+            `${API_BASE}/public/listings?featured=true&sort=featuredOrder&limit=${FETCH_LIMIT}`
+          );
+
+          list = merged.filter(isListingItem);
         }
 
-        // 🔀 RANDOM 9
-        const random9 = shuffleArray(merged).slice(0, RANDOM_COUNT);
+        const ordered = [...list]
+          .filter((item) => item?.featured === true || item?.featured === 1 || item?.featured === "true")
+          .sort(sortByFeaturedOrder)
+          .slice(0, DISPLAY_COUNT);
 
-        // ✅ map backend → UI
-        const mapped = random9.map((p) => ({
+        const mapped = ordered.map((p) => ({
           id: p.id,
+          featuredOrder: toOrder(p?.featuredOrder),
 
           name:
             p.title ||
@@ -171,7 +176,6 @@ export default function LatestListingsSection({ mode = "all" }) {
           type: p.propertyTypeLabel || p.propertyType || "Property",
           status: p.listingType === "FOR_RENT" ? "For Rent" : "For Sale",
 
-          // ✅ NEW: price format rules
           price: p.priceLabel || formatCardPrice(p),
 
           location:
@@ -189,7 +193,7 @@ export default function LatestListingsSection({ mode = "all" }) {
               ? `${p.sizeSqm} sqm`
               : "-",
 
-          img: p.mainImageUrl || p.coverImageUrl || "",
+          img: p.mainImageUrl || p.coverImageUrl || p.coverImage || p.thumbnail || "",
         }));
 
         if (!alive) return;
@@ -205,6 +209,7 @@ export default function LatestListingsSection({ mode = "all" }) {
     }
 
     load();
+
     return () => {
       alive = false;
     };
@@ -216,7 +221,6 @@ export default function LatestListingsSection({ mode = "all" }) {
         <div className="ll-top">
           <h2 className="lop-title">{title}</h2>
 
-          {/* View All dropdown */}
           <div className={"ll-dd" + (ddOpen ? " is-open" : "")} ref={ddRef}>
             <button
               className="ll-viewall"
@@ -246,7 +250,6 @@ export default function LatestListingsSection({ mode = "all" }) {
   );
 }
 
-/* ================= SKELETON ================= */
 function CardsSkeleton() {
   return (
     <div className="ll-scroll">
@@ -255,7 +258,15 @@ function CardsSkeleton() {
           <div className="ll-media" style={{ background: "#eee", height: 230 }} />
           <div className="ll-body">
             <div style={{ height: 18, width: "55%", background: "#eee", borderRadius: 6 }} />
-            <div style={{ height: 12, width: "85%", background: "#f0f0f0", borderRadius: 6, marginTop: 10 }} />
+            <div
+              style={{
+                height: 12,
+                width: "85%",
+                background: "#f0f0f0",
+                borderRadius: 6,
+                marginTop: 10,
+              }}
+            />
             <div style={{ height: 1, width: "100%", background: "#eee", margin: "14px 0" }} />
           </div>
         </div>
@@ -264,11 +275,14 @@ function CardsSkeleton() {
   );
 }
 
-/* ================= CARDS CAROUSEL ================= */
 function CardsCarousel({ items }) {
   const viewportRef = useRef(null);
   const [index, setIndex] = useState(0);
   const [visibleCount, setVisibleCount] = useState(4);
+
+  const orderedItems = useMemo(() => {
+    return [...items].sort((a, b) => a.featuredOrder - b.featuredOrder);
+  }, [items]);
 
   const getVisibleCount = () => {
     const el = viewportRef.current;
@@ -288,7 +302,7 @@ function CardsCarousel({ items }) {
     return () => window.removeEventListener("resize", update);
   }, []);
 
-  const maxIndex = Math.max(0, items.length - visibleCount);
+  const maxIndex = Math.max(0, orderedItems.length - visibleCount);
 
   const onScroll = () => {
     const el = viewportRef.current;
@@ -306,7 +320,7 @@ function CardsCarousel({ items }) {
   return (
     <>
       <div className="ll-scroll" ref={viewportRef} onScroll={onScroll}>
-        {items.map((x) => (
+        {orderedItems.map((x) => (
           <Link
             key={x.id}
             className="ll-card"

@@ -17,7 +17,8 @@ import {
   FaPlus,
   FaBuilding,
   FaBriefcase,
-  FaQuoteRight, // ✅ NEW
+  FaQuoteRight,
+  FaSortAmountDown,
 } from "react-icons/fa";
 import "./admin.css";
 
@@ -33,6 +34,7 @@ const NAV = [
 
   // Listings
   { to: "/admin/listings", label: "Search Listings", icon: FaBuilding },
+  { to: "/admin/listing-order", label: "Listing Order", icon: FaSortAmountDown },
   { to: "/admin/add-listing", label: "Add Listing", icon: FaPlus },
 
   // ✅ Client Stories
@@ -59,6 +61,8 @@ function usePageTitle() {
     if (pathname.startsWith("/admin/agents")) return "Agents";
 
     // Listings
+    if (pathname.startsWith("/admin/listing-order")) return "Listing Order";
+
     if (pathname.startsWith("/admin/listings")) return "Search Listings";
     if (pathname.startsWith("/admin/add-listing")) return "Add Listing";
 

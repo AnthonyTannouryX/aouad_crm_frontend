@@ -8,7 +8,7 @@ import AgentsPage from "./pages/AgentsPage.jsx";
 import SettingsPage from "./pages/SettingsPage.jsx";
 import AddListingPage from "./pages/AddListingPage.jsx";
 import AdminListingsSearchPage from "./pages/AdminListingsSearchPage.jsx";
-
+import ManageListingOrderPage from "./pages/ManageListingOrderPage.jsx";
 // Developers
 import DevelopersPage from "./pages/DevelopersPage.jsx";
 import AddDeveloperPage from "./pages/AddDeveloperPage.jsx";
@@ -37,7 +37,7 @@ export default function AdminRoutes() {
         {/* Developers */}
         <Route path="developers" element={<DevelopersPage />} />
         <Route path="add-developer" element={<AddDeveloperPage />} />
-
+        <Route path="listing-order" element={<ManageListingOrderPage />} />
         {/* ✅ Client Stories */}
         <Route path="client-stories" element={<ClientStoriesAdminPage />} />
 
