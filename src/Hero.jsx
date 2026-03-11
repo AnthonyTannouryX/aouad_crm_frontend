@@ -5,7 +5,7 @@ import { FaChevronDown, FaSearch } from "react-icons/fa";
 import "./hero.css";
 
 /* ✅ ONLY ONE IMAGE */
-import img1 from "./assets/carousel2.jpg";
+import img1 from "./assets/carousel2.webp";
 
 const IMAGES = [img1];
 
